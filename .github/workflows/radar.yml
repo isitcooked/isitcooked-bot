@@ -1,0 +1,56 @@
+name: radar
+on:
+  schedule:
+    - cron: "0 13 * * *"
+    - cron: "0 15 * * *"
+    - cron: "0 19 * * *"
+    - cron: "0 0 * * *"
+    - cron: "0 17 * * *"
+    - cron: "0 16 * * 0"
+    - cron: "30 21 * * 2,4"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "brief | alert | scoreboard | education | instagram"
+        default: "alert"
+permissions:
+  contents: write
+concurrency: radar
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      X_API_KEY: ${{ secrets.X_API_KEY }}
+      X_API_SECRET: ${{ secrets.X_API_SECRET }}
+      X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+      X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+      IG_USER_ID: ${{ secrets.IG_USER_ID }}
+      IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+      BRAND: ${{ vars.BRAND }}
+      DISCLOSURE: ${{ vars.DISCLOSURE }}
+      DRY_RUN: ${{ vars.DRY_RUN || 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt && playwright install --with-deps chromium
+      - name: run job
+        run: |
+          case "${{ github.event.schedule }}" in
+            "0 13 * * *"|"0 0 * * *") J=brief;;
+            "0 15 * * *"|"0 19 * * *") J=alert;;
+            "0 17 * * *") J=instagram;;
+            "0 16 * * 0") J=scoreboard;;
+            "30 21 * * 2,4") J=education;;
+            *) J="${{ github.event.inputs.job }}";;
+          esac
+          save() { git config user.name radar-bot; git config user.email bot@users.noreply.github.com
+                   git add -A state held public; git diff --cached --quiet || (git commit -m "radar: $J" && git push); }
+          if [ "$J" = instagram ]; then
+            python bot.py ig_prepare; save; sleep 45; python bot.py ig_publish; save
+          else
+            python bot.py "$J"; save
+          fi
