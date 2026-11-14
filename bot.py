@@ -149,33 +149,57 @@ def build_data(pair, risks):
     }
 
 
-def candidates(limit=15):
-    out = http_get(f"{DS}/token-boosts/latest/v1")
-    return [c for c in out if c.get("chainId") in CHAINS][:limit]
+def candidates(limit=60):
+    """Unique tokens from several DexScreener lists (latest boosts, latest profiles, top boosts)."""
+    seen_a, out = set(), []
+    for ep in ("token-boosts/latest/v1", "token-profiles/latest/v1", "token-boosts/top/v1"):
+        try:
+            items = http_get(f"{DS}/{ep}")
+        except Exception as e:
+            print(f"list {ep} unavailable:", e)
+            continue
+        for c in items:
+            if c.get("chainId") in CHAINS and c.get("tokenAddress") and c["tokenAddress"] not in seen_a:
+                seen_a.add(c["tokenAddress"])
+                out.append(c)
+    return out[:limit]
 
 
 def pick_alert_data():
     seen = {h["address"] for h in load("history", [])} | set(load("seen", []))
     cands = candidates()
     random.shuffle(cands)
+    print(f"candidates: {len(cands)} unique tokens, {len(seen)} already used")
+    skipped = {"used": 0, "no pair": 0, "low liquidity": 0, "error": 0}
     for c in cands:
         if c["tokenAddress"] in seen:
+            skipped["used"] += 1
             continue
-        pair = best_pair(c["chainId"], c["tokenAddress"])
-        if not pair or (pair.get("liquidity") or {}).get("usd", 0) < 5000:
+        try:
+            pair = best_pair(c["chainId"], c["tokenAddress"])
+        except Exception as e:
+            skipped["error"] += 1
+            continue
+        if not pair:
+            skipped["no pair"] += 1
+            continue
+        if (pair.get("liquidity") or {}).get("usd", 0) < 5000:
+            skipped["low liquidity"] += 1
             continue
         risks = rugcheck(c["tokenAddress"]) if c["chainId"] == "solana" else goplus_risks(c["chainId"], c["tokenAddress"])
         data = build_data(pair, risks)
         data["copies"] = count_copies(data["token"]["symbol"])
         if data["copies"] > 1:
             data["facts"].append(f"Tokens sharing this ticker (DexScreener search, first results): {data['copies']}")
+        print(f"PICKED: {data['token']['symbol']} on {data['token']['chain']} ({data['token']['address']}) | skipped: {skipped}")
         return data
+    print("nothing picked | skipped:", skipped)
     return None
 
 
 def brief_data(n=5):
     rows = []
-    for c in candidates(25):
+    for c in candidates(40):
         pair = best_pair(c["chainId"], c["tokenAddress"])
         if pair and (pair.get("liquidity") or {}).get("usd", 0) >= 5000:
             rows.append(build_data(pair, None))
