@@ -150,6 +150,14 @@ def coin_card(d, logo_path, pal, out, brand):
     b64 = base64.b64encode(open(logo_path, "rb").read()).decode()
     a2c = pal["a2"] if max(pal["a2"]) >= 200 else tuple(min(255, int(v * 0.35 + 255 * 0.65)) for v in pal["a1"])
     a1, a2 = rgb(pal["a1"]), rgb(a2c)
+    import os as _os
+    cp = pathlib.Path(__file__).parent / "chains" / f"{d.get('chain_key', '')}.png"
+    cimg = (f"<img src='data:image/png;base64,{base64.b64encode(cp.read_bytes()).decode()}' "
+            f"style='width:54px;height:54px;border-radius:50%;vertical-align:middle;margin-right:12px;border:3px solid #111'>") if cp.exists() else ""
+    chain_html = f"<div class='sticker chain'>{cimg}{e(d['chain'].upper())}</div>" if d.get("chain") else ""
+    vlabel, vcol = d.get("verdict", ("RISK CHECK", "255,255,255"))
+    vtext = "#fff" if vlabel == "HIGH RISK" else "#111"
+    copies_html = (f"<div class='sticker copies'>{d['copies']} TOKENS<br>SHARE THIS TICKER</div>" if d.get("copies", 0) > 1 else "")
     tsize = 196 if len(d["symbol"]) <= 5 else max(96, int(196 * 5 / len(d["symbol"])))
     stats = "".join(
         f"<div class='st s{i}'><div class='sl'>{e(k)}</div><div class='sv'>{e(v)}</div></div>" for i, (k, v) in enumerate(d["stats"]))
@@ -173,19 +181,25 @@ body{{width:1080px;height:1350px;overflow:hidden;background:#0a0a13;font-family:
 .st{{flex:1;border:6px solid #111;border-radius:22px;box-shadow:10px 10px 0 #000;padding:16px 22px 14px;color:#111}}
 .s0{{background:rgb({a2});transform:rotate(-2deg)}} .s1{{background:#fff;transform:rotate(1.5deg)}} .s2{{background:rgb({a1});transform:rotate(-1deg)}}
 .sl{{font-family:'PopM';font-size:21px;letter-spacing:.05em;text-transform:uppercase}}
-.sv{{font-family:'Fredoka';font-size:58px;line-height:1.1;margin-top:4px}}
+.sv{{font-family:'Fredoka';font-size:54px;white-space:nowrap;line-height:1.1;margin-top:4px}}
 .cap{{position:absolute;left:40px;right:40px;top:1068px;text-align:center;font-family:'Pop';font-weight:700;font-size:74px;line-height:1.05;text-transform:uppercase;
  -webkit-text-stroke:11px #000;paint-order:stroke fill;text-shadow:7px 7px 0 #000}}
-.sub{{position:absolute;left:64px;right:64px;top:1218px;text-align:center;font-family:'PopM';font-size:30px;color:#fff}}
-.foot{{position:absolute;left:64px;right:64px;bottom:34px;display:flex;justify-content:space-between;font-family:'PopM';font-size:19px;color:rgba(255,255,255,.62)}}
+.sub{{position:absolute;left:64px;right:64px;top:1200px;text-align:center;font-family:'PopM';font-size:28px;color:#fff}}
+.chain{{position:absolute;left:600px;top:488px;background:#fff;transform:rotate(5deg);font-size:34px;z-index:3;padding:8px 22px 8px 12px}}
+.copies{{position:absolute;left:60px;top:470px;background:#ff4d5e;color:#fff;transform:rotate(-6deg);font-size:28px;z-index:3;text-align:center;line-height:1.1}}
+.ca{{position:absolute;left:0;right:0;top:1250px;text-align:center}}
+.ca span{{display:inline-block;background:#000;border:3px solid rgba(255,255,255,.55);border-radius:30px;padding:8px 26px;font-family:'PopM';font-size:25px;letter-spacing:.03em}}
+.foot{{position:absolute;left:64px;right:64px;bottom:16px;display:flex;justify-content:space-between;font-family:'PopM';font-size:17px;color:rgba(255,255,255,.62)}}
 </style></head><body>
 {_candles_svg()}<div class='burst'></div><div class='glow'></div>
-<div class='wrap'><div class='top'><div class='sticker brand'>{e(brand)}</div><div class='sticker tag'>RISK CHECK</div></div></div>
+<div class='wrap'><div class='top'><div class='sticker brand'>{e(brand)}</div><div class='sticker tag' style='background:rgb({vcol});color:{vtext}'>{e(vlabel)}</div></div></div>
 <div class='logo'></div>
 <div class='tick'>${e(d['symbol'])}</div>
+{chain_html}{copies_html}
 <div class='stats'>{stats}</div>
 <div class='cap'>{e(d['caption'])}</div>
 <div class='sub'>{e(d['sub'])}</div>
+<div class='ca'><span>{e(d.get('chain','')).upper()} &nbsp;|&nbsp; CA: {e(d.get('ca',''))}</span></div>
 <div class='foot'><div>{e(d['sources'])}</div><div>Not financial advice. DYOR.</div></div>
 </body></html>"""
     return to_png(doc, out)

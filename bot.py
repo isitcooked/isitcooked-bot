@@ -14,6 +14,10 @@ MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-5-5")
 DRY_RUN = os.getenv("DRY_RUN", "true").lower() == "true"
 DISCLOSURE = os.getenv("DISCLOSURE", "")
 DS = "https://api.dexscreener.com"
+CHAINS = [c.strip() for c in (os.getenv("CHAINS") or "solana,bsc,ethereum,base").split(",") if c.strip()]
+CHAIN_NAMES = {"solana": "Solana", "bsc": "BNB Chain", "ethereum": "Ethereum", "base": "Base", "arbitrum": "Arbitrum",
+               "polygon": "Polygon", "avalanche": "Avalanche", "optimism": "Optimism"}
+EVM_IDS = {"ethereum": 1, "bsc": 56, "base": 8453, "arbitrum": 42161, "polygon": 137, "avalanche": 43114, "optimism": 10}
 FOOTER = "Not financial advice. DYOR."
 BANNED = re.compile(r"\b(buy|sell|100x|1000x|gem|guaranteed|moon)\b", re.I)
 TOPICS = [
@@ -73,6 +77,45 @@ def rugcheck(addr):
         return None
 
 
+def goplus_risks(chain, addr):
+    """EVM contract checks via GoPlus (free). Returns list of flag names, or None if unavailable."""
+    cid = EVM_IDS.get(chain)
+    if not cid:
+        return None
+    try:
+        j = http_get(f"https://api.gopluslabs.io/api/v1/token_security/{cid}?contract_addresses={addr}")
+        t = (j.get("result") or {}).get(addr.lower())
+        if not t:
+            return None
+        risks = []
+        if t.get("is_honeypot") == "1": risks.append("Honeypot (danger)")
+        if t.get("is_open_source") == "0": risks.append("Contract not verified (warn)")
+        if t.get("hidden_owner") == "1": risks.append("Hidden owner (danger)")
+        if t.get("is_mintable") == "1": risks.append("Mintable supply (warn)")
+        if t.get("can_take_back_ownership") == "1": risks.append("Ownership can be reclaimed (warn)")
+        if float(t.get("sell_tax") or 0) > 0.10: risks.append("High sell tax (warn)")
+        if float(t.get("buy_tax") or 0) > 0.10: risks.append("High buy tax (warn)")
+        return risks
+    except Exception as e:
+        print("goplus unavailable:", e)
+        return None
+
+
+def count_copies(sym):
+    """How many different tokens share this ticker (DexScreener search, first results)."""
+    try:
+        pairs = http_get(f"{DS}/latest/dex/search?q={sym}").get("pairs") or []
+        return len({(p["chainId"], p["baseToken"]["address"]) for p in pairs
+                    if p["baseToken"]["symbol"].upper() == sym.upper()})
+    except Exception as e:
+        print("copies lookup failed:", e)
+        return 0
+
+
+def short_ca(a):
+    return a if len(a) <= 16 else f"{a[:8]}...{a[-8:]}"
+
+
 def build_data(pair, risks):
     b, liq = pair["baseToken"], (pair.get("liquidity") or {}).get("usd", 0)
     vol = (pair.get("volume") or {}).get("h24", 0)
@@ -90,14 +133,16 @@ def build_data(pair, risks):
     ]
     if liq:
         facts.append(f"Volume to liquidity ratio: {vol / liq:.1f}x")
-    facts.append("Risk flags (RugCheck): " + ("; ".join(risks) if risks else "none reported or unavailable"))
+    facts.append(f"Chain: {CHAIN_NAMES.get(pair['chainId'], pair['chainId'])}")
+    facts.append("Risk flags: " + ("; ".join(risks) if risks else "none reported or unavailable"))
     chg = (pair.get("priceChange") or {}).get("h24", 0)
     metrics = [("LIQUIDITY", fmt_usd(liq), None), ("24H VOLUME", fmt_usd(vol), None), ("PAIR AGE", age, None),
                ("24H CHANGE", f"{chg:+.1f}%", "red" if chg < 0 else "green")]
     return {
-        "metrics": metrics, "risks_known": risks is not None,
+        "metrics": metrics, "risks_known": risks is not None, "volume": vol, "age_h": age_h,
         "logo": (pair.get("info") or {}).get("imageUrl"), "pool": pair.get("pairAddress"),
         "token": {"symbol": b["symbol"], "name": b["name"], "chain": pair["chainId"],
+                  "chain_name": CHAIN_NAMES.get(pair["chainId"], pair["chainId"].title()),
                   "address": b["address"], "url": pair.get("url")},
         "price": pair.get("priceUsd"), "liquidity": liq, "risk_count": len(risks or []),
         "facts": facts,
@@ -106,7 +151,7 @@ def build_data(pair, risks):
 
 def candidates(limit=15):
     out = http_get(f"{DS}/token-boosts/latest/v1")
-    return [c for c in out if c.get("chainId") == "solana"][:limit]
+    return [c for c in out if c.get("chainId") in CHAINS][:limit]
 
 
 def pick_alert_data():
@@ -117,7 +162,12 @@ def pick_alert_data():
         pair = best_pair(c["chainId"], c["tokenAddress"])
         if not pair or (pair.get("liquidity") or {}).get("usd", 0) < 5000:
             continue
-        return build_data(pair, rugcheck(c["tokenAddress"]))
+        risks = rugcheck(c["tokenAddress"]) if c["chainId"] == "solana" else goplus_risks(c["chainId"], c["tokenAddress"])
+        data = build_data(pair, risks)
+        data["copies"] = count_copies(data["token"]["symbol"])
+        if data["copies"] > 1:
+            data["facts"].append(f"Tokens sharing this ticker (DexScreener search, first results): {data['copies']}")
+        return data
     return None
 
 
@@ -140,8 +190,10 @@ def mock_generate(job, data, fmt, platform):
     f = data.get("facts", [])
     if job == "alert":
         t = data["token"]["symbol"]
-        txt = f"${t} check: {f[1]}. {f[2]}. {f[4]}.\n\n{FOOTER}"
-        return {"platform": "x", "pillar": "alert", "format": "post", "text": txt,
+        fv = lambda p: next((x for x in f if x.startswith(p)), p)
+        txt = [f"${t} on {data['token']['chain_name']}: {fv('Liquidity')}, {fv('24h volume')}.",
+               f"Breakdown: {fv('Pair age')}. {fv('24h price change')}. {fv('Risk flags')}."]
+        return {"platform": "x", "pillar": "alert", "format": "thread", "text": txt,
                 "image_caption": "Check before you trust", "image_sub": "Verify the pool and the contract"}
     if job == "brief" and fmt == "carousel":
         slides = ["Today's memecoin risk board"] + [x[:90] for x in f[:4]] + ["Check liquidity and holders first."]
@@ -155,6 +207,12 @@ def mock_generate(job, data, fmt, platform):
                 "text": ["Scoreboard Sunday: this week's alerts, misses included."] + [x[:270] for x in f[:5]]}
     return {"platform": "x", "pillar": "education", "format": "post",
             "text": f"Memecoin basics: {data['topic']}.\n\nCheck this before trusting any token."}
+
+
+ALERT_RULES = ("ALERT FORMAT: put exactly 2 posts in the text array. Post 1 (max 170 chars): hook with the ticker, the chain and the single "
+               "most important fact. Post 2 (max 260 chars): breakdown with 'Green flags:' and 'Red flags:' using only DATA.facts "
+               "(write 'none found' when there are none) and say what stands out and why it is worth checking, never why to buy. "
+               "The contract, the how-to-verify post and the disclaimer are appended automatically: do not write them. ")
 
 
 def gemini_text(system, user):
@@ -176,8 +234,8 @@ def generate(job, data, fmt, platform):
     user = (f"JOB: {job}\nPLATFORM: {platform}\nFORMAT: {fmt}\nDISCLOSURE: {DISCLOSURE}\n"
             f"RULES: quote numbers exactly as written in DATA.facts and add no other numbers. "
             f"If a token is named, end with '{FOOTER}'. For alerts also return image_caption (max 5 words, meme-caption style, no numbers) "
-            f"and image_sub (max 10 words, no numbers).\nDATA:\n{json.dumps(data, ensure_ascii=False)}\n"
-            f"Return only the JSON object.")
+            f"and image_sub (max 10 words, no numbers). Keep text under 170 characters. Do NOT write the contract address; it is appended automatically.\nDATA:\n{json.dumps(data, ensure_ascii=False)}\n"
+            f"{ALERT_RULES if job == 'alert' else ''}Return only the JSON object.")
     if os.getenv("ANTHROPIC_API_KEY"):
         from anthropic import Anthropic
         msg = Anthropic().messages.create(model=MODEL, max_tokens=1800, system=system,
@@ -197,6 +255,11 @@ def all_text(out):
 def validate(out, data):
     problems, parts = [], all_text(out)
     joined = " ".join(parts)
+    if data.get("token") and data["token"].get("address"):
+        addr = data["token"]["address"]
+        if addr not in joined:
+            problems.append("missing contract address")
+        joined = joined.replace(addr, "")
     if BANNED.search(joined):
         problems.append("banned word: " + BANNED.search(joined).group(0))
     facts = " ".join(data.get("facts", [])).replace(",", "")
@@ -224,6 +287,36 @@ def save_outbox(job, parts, image):
     name = f"{dt.datetime.utcnow():%Y%m%d_%H%M}_{job}.md"
     img = f"\n\n---\n\nIMAGE: public/{pathlib.Path(image).name}" if image else ""
     (box / name).write_text("\n\n---\n\n".join(parts) + img, encoding="utf-8")
+
+
+EXPLORERS = {"solana": "Solscan", "bsc": "BscScan", "ethereum": "Etherscan", "base": "BaseScan",
+             "arbitrum": "Arbiscan", "polygon": "Polygonscan", "avalanche": "Snowtrace", "optimism": "Optimistic Etherscan"}
+
+
+def verdict(data):
+    """Rule-based label shown on the image (no AI): HIGH RISK / CAUTION / NO FLAGS FOUND."""
+    n, liq = data["risk_count"], data.get("liquidity", 0)
+    ratio = (data.get("volume", 0) / liq) if liq else 99
+    if n >= 3 or liq < 10000:
+        return ("HIGH RISK", "255,77,94")
+    if n >= 1 or data.get("age_h", 999) < 24 or ratio > 5 or not data["risks_known"]:
+        return ("CAUTION", "255,176,32")
+    return ("NO FLAGS FOUND", "24,224,138")
+
+
+def with_contract(out, data):
+    """Thread: [hook + contract, breakdown, how-to-verify + disclaimer]. Contract and verify post are added by code."""
+    t = data["token"]
+    texts = list(out["text"]) if isinstance(out["text"], list) else [out["text"]]
+    line = f"{t['chain_name']} CA: {t['address']}"
+    if len(texts[0]) + 2 + len(line) <= 280:
+        texts[0] += "\n\n" + line
+    else:
+        texts.insert(1, line)
+    texts.append(f"How to verify: open this contract on {EXPLORERS.get(t['chain'], 'the chain explorer')}, check that it matches "
+                 f"the project's official link, and compare liquidity before trusting a ticker.\n\n{FOOTER}")
+    out["text"] = texts
+    return out
 
 
 def hold(job, out, problems):
@@ -303,11 +396,12 @@ def render_alert_card(data, out, prefix):
     logo = get_logo(data, prefix)
     pal = design.logo_palette(Image.open(logo))
     m = {k: v for k, v, _ in data["metrics"]}
-    third = ("RugCheck flags", f"{data['risk_count']} flagged") if data["risks_known"] else ("Pair age", m["PAIR AGE"])
+    third = ("Risk flags", f"{data['risk_count']} flags") if data["risks_known"] else ("Pair age", m["PAIR AGE"])
     d = {"symbol": data["token"]["symbol"].upper()[:12],
          "stats": [("Liquidity", m["LIQUIDITY"]), ("24h volume", m["24H VOLUME"]), third],
          "caption": out.get("image_caption") or "Check before you trust", "sub": out.get("image_sub", ""),
-         "sources": "Data: DexScreener, RugCheck"}
+         "chain": data["token"]["chain_name"], "chain_key": data["token"]["chain"], "verdict": verdict(data), "ca": short_ca(data["token"]["address"]), "copies": data.get("copies", 0),
+         "sources": "Data: DexScreener, RugCheck / GoPlus"}
     return render_html.coin_card(d, logo, pal, PUBLIC / f"{prefix}_card.png", BRAND.upper())
 
 
@@ -338,7 +432,7 @@ def job_alert():
     data = pick_alert_data()
     if not data:
         return print("no new candidate")
-    out = generate("alert", data, "post", "x")
+    out = with_contract(generate("alert", data, "thread", "x"), data)
     prefix = re.sub(r"\W", "", f"x_{dt.date.today():%Y%m%d}_{data['token']['symbol'][:8]}")
     if deliver_x("alert", out, data, lambda o: render_alert_card(data, o, prefix)) and not DRY_RUN:
         h = load("history", [])
