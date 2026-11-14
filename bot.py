@@ -1,7 +1,7 @@
 """Memecoin Risk Radar bot. Jobs: brief | alert | scoreboard | education | ig_prepare | ig_publish
 Run: python bot.py <job>   (DRY_RUN=true prints instead of publishing)
 """
-import os, sys, json, re, time, pathlib, datetime as dt
+import os, sys, json, re, time, random, pathlib, datetime as dt
 import requests
 
 ROOT = pathlib.Path(__file__).parent
@@ -155,8 +155,10 @@ def candidates(limit=15):
 
 
 def pick_alert_data():
-    seen = {h["address"] for h in load("history", [])}
-    for c in candidates():
+    seen = {h["address"] for h in load("history", [])} | set(load("seen", []))
+    cands = candidates()
+    random.shuffle(cands)
+    for c in cands:
         if c["tokenAddress"] in seen:
             continue
         pair = best_pair(c["chainId"], c["tokenAddress"])
@@ -432,9 +434,12 @@ def job_alert():
     data = pick_alert_data()
     if not data:
         return print("no new candidate")
+    seen = load("seen", [])
+    seen.append(data["token"]["address"])
+    save("seen", seen[-500:])
     out = with_contract(generate("alert", data, "thread", "x"), data)
     prefix = re.sub(r"\W", "", f"x_{dt.date.today():%Y%m%d}_{data['token']['symbol'][:8]}")
-    if deliver_x("alert", out, data, lambda o: render_alert_card(data, o, prefix)) and not DRY_RUN:
+    if deliver_x("alert", out, data, lambda o: render_alert_card(data, o, prefix)):
         h = load("history", [])
         t = data["token"]
         h.append({"symbol": t["symbol"], "address": t["address"], "chain": t["chain"], "price": data["price"],
