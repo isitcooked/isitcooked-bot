@@ -22,5 +22,13 @@
   "price": "0.00003734",
   "risk_count": 0,
   "ts": 1794682156.3470788
+ },
+ {
+  "symbol": "Christmax",
+  "address": "D7MyAD7k3AqJpg4uxjUcmL51EDHrEsJxkjUynsxcpump",
+  "chain": "solana",
+  "price": "0.0002162",
+  "risk_count": 0,
+  "ts": 1794684641.6395457
  }
 ]
