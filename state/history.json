@@ -6,5 +6,13 @@
   "price": "0.00003727",
   "risk_count": 0,
   "ts": 1794666879.5628169
+ },
+ {
+  "symbol": "SCRAP",
+  "address": "7x8HCyf5Z3JYWXmC7p6C4w11Hw6JAXFEiZy6PCDBpump",
+  "chain": "solana",
+  "price": "0.000006261",
+  "risk_count": 1,
+  "ts": 1794670321.187809
  }
 ]
