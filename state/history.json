@@ -46,5 +46,13 @@
   "price": "0.003545",
   "risk_count": 0,
   "ts": 1794748878.0827944
+ },
+ {
+  "symbol": "SLIDES",
+  "address": "8JNcbK2bWFxQnZsR6xQtgB3en7DcFSXW5xSyh6fYpump",
+  "chain": "solana",
+  "price": "0.00001617",
+  "risk_count": 0,
+  "ts": 1794756911.39338
  }
 ]
