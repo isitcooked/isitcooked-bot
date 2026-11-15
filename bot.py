@@ -340,7 +340,8 @@ def with_contract(out, data):
     else:
         texts.insert(1, line)
     texts.append(f"How to verify: open this contract on {EXPLORERS.get(t['chain'], 'the chain explorer')}, check that it matches "
-                 f"the project's official link, and compare liquidity before trusting a ticker.\n\n{FOOTER}")
+                 f"the project's official link, and compare liquidity before trusting a ticker.\n\n"
+                 f"Which red flag would make you skip this one?\n\n{FOOTER}")
     out["text"] = texts
     return out
 
@@ -440,16 +441,13 @@ def render_carousel(slides, prefix):
     return files
 
 
-def ig_publish(urls, caption):
+def ig_publish(image_url, caption):
+    """Single-image post (Instagram Graph API, professional account)."""
     G, uid, tok = "https://graph.facebook.com/v21.0", os.environ["IG_USER_ID"], os.environ["IG_ACCESS_TOKEN"]
-    kids = []
-    for u in urls:
-        r = requests.post(f"{G}/{uid}/media", data={"image_url": u, "is_carousel_item": "true", "access_token": tok}, timeout=30)
-        r.raise_for_status(); kids.append(r.json()["id"])
-    r = requests.post(f"{G}/{uid}/media", data={"media_type": "CAROUSEL", "children": ",".join(kids),
-                                                "caption": caption, "access_token": tok}, timeout=30)
-    r.raise_for_status(); cid = r.json()["id"]
-    time.sleep(15)
+    r = requests.post(f"{G}/{uid}/media", data={"image_url": image_url, "caption": caption, "access_token": tok}, timeout=30)
+    r.raise_for_status()
+    cid = r.json()["id"]
+    time.sleep(12)
     requests.post(f"{G}/{uid}/media_publish", data={"creation_id": cid, "access_token": tok}, timeout=30).raise_for_status()
 
 
@@ -505,32 +503,44 @@ def job_education():
     deliver_x("education", generate("education", data, "post", "x"), data)
 
 
+HASHTAGS = {"solana": "#solana", "bsc": "#bnbchain", "ethereum": "#ethereum", "base": "#basechain",
+            "arbitrum": "#arbitrum", "polygon": "#polygon", "avalanche": "#avalanche", "optimism": "#optimism"}
+
+
 def job_ig_prepare():
     for f in PUBLIC.glob("*.png"):
         if time.time() - f.stat().st_mtime > 14 * 86400:
             f.unlink()
-    data = brief_data()
+    data = pick_alert_data()
     if not data:
-        return print("no data")
-    out = generate("brief", data, "carousel", "instagram")
+        return print("no new candidate")
+    seen = load("seen", [])
+    seen.append(data["token"]["address"])
+    save("seen", seen[-500:])
+    out = with_contract(generate("alert", data, "thread", "instagram"), data)
     problems = validate(out, data)
     if problems:
         return hold("ig", out, problems)
-    files = render_carousel(out["slides"], f"ig_{dt.date.today():%Y%m%d}")
-    save("ig_next", {"files": files, "caption": out.get("caption", "")})
-    print("prepared", files)
+    prefix = re.sub(r"\W", "", f"ig_{dt.date.today():%Y%m%d}_{data['token']['symbol'][:8]}")
+    card = render_alert_card(data, out, prefix)
+    tags = " ".join(["#memecoins", "#cryptorisk", "#dexscreener", HASHTAGS.get(data["token"]["chain"], "#crypto")])
+    caption = ("\n\n".join(out["text"]) + "\n\nWhich red flag would make you skip this one? Tell us below.\n\n" + tags)
+    save("ig_next", {"file": pathlib.Path(card).name, "caption": caption})
+    print("prepared", card)
 
 
 def job_ig_publish():
     nxt = load("ig_next", None)
-    if not nxt:
+    if not nxt or "file" not in nxt:
+        (STATE / "ig_next.json").unlink(missing_ok=True)
         return print("nothing prepared")
     base = f"https://raw.githubusercontent.com/{os.environ.get('GITHUB_REPOSITORY', 'USER/REPO')}/main/public/"
-    if DRY_RUN:
-        print("[DRY RUN IG]", nxt["caption"], [base + f for f in nxt["files"]])
+    if DRY_RUN or not os.getenv("IG_ACCESS_TOKEN"):
+        print("[DRY RUN IG]", nxt["caption"], base + nxt["file"])
+        save_outbox("instagram", [nxt["caption"]], str(PUBLIC / nxt["file"]))
     else:
-        ig_publish([base + f for f in nxt["files"]], nxt["caption"])
-    (STATE / "ig_next.json").unlink()
+        ig_publish(base + nxt["file"], nxt["caption"])
+    (STATE / "ig_next.json").unlink(missing_ok=True)
 
 
 JOBS = {"alert": job_alert, "brief": job_brief, "scoreboard": job_scoreboard, "education": job_education,
