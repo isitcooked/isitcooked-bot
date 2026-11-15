@@ -139,7 +139,7 @@ def build_data(pair, risks):
     metrics = [("LIQUIDITY", fmt_usd(liq), None), ("24H VOLUME", fmt_usd(vol), None), ("PAIR AGE", age, None),
                ("24H CHANGE", f"{chg:+.1f}%", "red" if chg < 0 else "green")]
     return {
-        "metrics": metrics, "risks_known": risks is not None, "volume": vol, "age_h": age_h,
+        "metrics": metrics, "risks_known": risks is not None, "volume": vol, "age_h": age_h, "risk_list": list(risks or []),
         "logo": (pair.get("info") or {}).get("imageUrl"), "pool": pair.get("pairAddress"),
         "token": {"symbol": b["symbol"], "name": b["name"], "chain": pair["chainId"],
                   "chain_name": CHAIN_NAMES.get(pair["chainId"], pair["chainId"].title()),
@@ -311,7 +311,8 @@ def save_outbox(job, parts, image):
         if time.time() - f.stat().st_mtime > 30 * 86400:
             f.unlink()
     name = f"{dt.datetime.utcnow():%Y%m%d_%H%M}_{job}.md"
-    img = f"\n\n---\n\nIMAGE: public/{pathlib.Path(image).name}" if image else ""
+    imgs = image if isinstance(image, list) else ([image] if image else [])
+    img = "".join(f"\n\n---\n\nIMAGE: public/{pathlib.Path(i).name}" for i in imgs)
     (box / name).write_text("\n\n---\n\n".join(parts) + img, encoding="utf-8")
 
 
@@ -353,21 +354,37 @@ def hold(job, out, problems):
 
 
 # ---------- publishing ----------
+def upload_media_x(path):
+    """Returns a media id, or None. Tries the legacy v1.1 upload, then the v2 one-shot upload (images)."""
+    import tweepy
+    from requests_oauthlib import OAuth1
+    try:
+        auth = tweepy.OAuth1UserHandler(os.environ["X_API_KEY"], os.environ["X_API_SECRET"],
+                                        os.environ["X_ACCESS_TOKEN"], os.environ["X_ACCESS_SECRET"])
+        return tweepy.API(auth).media_upload(path).media_id
+    except Exception as e:
+        print("v1.1 media upload failed, trying v2:", e)
+    try:
+        oa = OAuth1(os.environ["X_API_KEY"], os.environ["X_API_SECRET"], os.environ["X_ACCESS_TOKEN"], os.environ["X_ACCESS_SECRET"])
+        with open(path, "rb") as f:
+            r = requests.post("https://api.x.com/2/media/upload", auth=oa, files={"media": f},
+                              data={"media_category": "tweet_image", "media_type": "image/png"}, timeout=60)
+        r.raise_for_status()
+        j = r.json()
+        return (j.get("data") or {}).get("id") or j.get("media_id_string")
+    except Exception as e:
+        print("v2 media upload failed too, posting text only:", e)
+        return None
+
+
 def publish_x(parts, image=None):
     import tweepy
     c = tweepy.Client(consumer_key=os.environ["X_API_KEY"], consumer_secret=os.environ["X_API_SECRET"],
                       access_token=os.environ["X_ACCESS_TOKEN"], access_token_secret=os.environ["X_ACCESS_SECRET"])
-    media_ids = None
-    if image:
-        try:
-            auth = tweepy.OAuth1UserHandler(os.environ["X_API_KEY"], os.environ["X_API_SECRET"],
-                                            os.environ["X_ACCESS_TOKEN"], os.environ["X_ACCESS_SECRET"])
-            media_ids = [tweepy.API(auth).media_upload(image).media_id]
-        except Exception as e:
-            print("image upload failed, posting text only:", e)
+    media_id = upload_media_x(image) if image else None
     prev = None
     for i, p in enumerate(parts):
-        r = c.create_tweet(text=p, in_reply_to_tweet_id=prev, media_ids=media_ids if i == 0 else None)
+        r = c.create_tweet(text=p, in_reply_to_tweet_id=prev, media_ids=[media_id] if (i == 0 and media_id) else None)
         prev = r.data["id"]
         time.sleep(2)
 
@@ -441,13 +458,22 @@ def render_carousel(slides, prefix):
     return files
 
 
-def ig_publish(image_url, caption):
-    """Single-image post (Instagram Graph API, professional account)."""
+def ig_publish(image_urls, caption):
+    """Instagram Graph API (professional account): single image or carousel (all slides 4:5 JPEG)."""
     G, uid, tok = "https://graph.facebook.com/v21.0", os.environ["IG_USER_ID"], os.environ["IG_ACCESS_TOKEN"]
-    r = requests.post(f"{G}/{uid}/media", data={"image_url": image_url, "caption": caption, "access_token": tok}, timeout=30)
+    if len(image_urls) == 1:
+        data = {"image_url": image_urls[0], "caption": caption, "access_token": tok}
+    else:
+        kids = []
+        for u in image_urls:
+            r = requests.post(f"{G}/{uid}/media", data={"image_url": u, "is_carousel_item": "true", "access_token": tok}, timeout=30)
+            r.raise_for_status()
+            kids.append(r.json()["id"])
+        data = {"media_type": "CAROUSEL", "children": ",".join(kids), "caption": caption, "access_token": tok}
+    r = requests.post(f"{G}/{uid}/media", data=data, timeout=30)
     r.raise_for_status()
     cid = r.json()["id"]
-    time.sleep(12)
+    time.sleep(15)
     requests.post(f"{G}/{uid}/media_publish", data={"creation_id": cid, "access_token": tok}, timeout=30).raise_for_status()
 
 
@@ -507,8 +533,31 @@ HASHTAGS = {"solana": "#solana", "bsc": "#bnbchain", "ethereum": "#ethereum", "b
             "arbitrum": "#arbitrum", "polygon": "#polygon", "avalanche": "#avalanche", "optimism": "#optimism"}
 
 
+def render_ig_slides(data, out, prefix):
+    """Slide 1 = the main token card; slides 2-4 = numbers, flags, verify. Returns JPEG paths."""
+    t = data["token"]
+    logo = get_logo(data, prefix)
+    pal = design.logo_palette(Image.open(logo))
+    card = pathlib.Path(render_alert_card(data, out, prefix + "_s1"))
+    d = {"symbol": t["symbol"].upper()[:10], "chain": t["chain_name"], "chain_key": t["chain"],
+         "explorer": EXPLORERS.get(t["chain"], "the chain explorer"), "address": t["address"], "metrics": data["metrics"],
+         "risk_list": data.get("risk_list", []), "risks_known": data["risks_known"], "copies": data.get("copies", 0)}
+    pngs = [card]
+    for k, kind in enumerate(("numbers", "flags", "verify"), start=2):
+        p = PUBLIC / f"{prefix}_s{k}.png"
+        render_html.token_slide(kind, d, pal, k - 1, 4, p, BRAND.upper())
+        pngs.append(p)
+    jpgs = []
+    for p in pngs:
+        j = p.with_suffix(".jpg")  # Instagram's publishing API only accepts JPEG
+        Image.open(p).convert("RGB").save(j, "JPEG", quality=92)
+        p.unlink()
+        jpgs.append(j)
+    return jpgs
+
+
 def job_ig_prepare():
-    for f in PUBLIC.glob("*.png"):
+    for f in list(PUBLIC.glob("*.png")) + list(PUBLIC.glob("*.jpg")):
         if time.time() - f.stat().st_mtime > 14 * 86400:
             f.unlink()
     data = pick_alert_data()
@@ -522,24 +571,26 @@ def job_ig_prepare():
     if problems:
         return hold("ig", out, problems)
     prefix = re.sub(r"\W", "", f"ig_{dt.date.today():%Y%m%d}_{data['token']['symbol'][:8]}")
-    card = render_alert_card(data, out, prefix)
+    files = render_ig_slides(data, out, prefix)
     tags = " ".join(["#memecoins", "#cryptorisk", "#dexscreener", HASHTAGS.get(data["token"]["chain"], "#crypto")])
-    caption = ("\n\n".join(out["text"]) + "\n\nWhich red flag would make you skip this one? Tell us below.\n\n" + tags)
-    save("ig_next", {"file": pathlib.Path(card).name, "caption": caption})
-    print("prepared", card)
+    caption = ("\n\n".join(out["text"]).replace("Which red flag would make you skip this one?\n\n", "")
+               + "\n\nWhich red flag would make you skip this one? Tell us below.\n\n" + tags)
+    save("ig_next", {"files": [f.name for f in files], "caption": caption})
+    print("prepared", [f.name for f in files])
 
 
 def job_ig_publish():
     nxt = load("ig_next", None)
-    if not nxt or "file" not in nxt:
+    if not nxt or "files" not in nxt:
         (STATE / "ig_next.json").unlink(missing_ok=True)
         return print("nothing prepared")
     base = f"https://raw.githubusercontent.com/{os.environ.get('GITHUB_REPOSITORY', 'USER/REPO')}/main/public/"
+    urls = [base + f for f in nxt["files"]]
     if DRY_RUN or not os.getenv("IG_ACCESS_TOKEN"):
-        print("[DRY RUN IG]", nxt["caption"], base + nxt["file"])
-        save_outbox("instagram", [nxt["caption"]], str(PUBLIC / nxt["file"]))
+        print("[DRY RUN IG]", nxt["caption"], urls)
+        save_outbox("instagram", [nxt["caption"]], [str(PUBLIC / f) for f in nxt["files"]])
     else:
-        ig_publish(base + nxt["file"], nxt["caption"])
+        ig_publish(urls, nxt["caption"])
     (STATE / "ig_next.json").unlink(missing_ok=True)
 
 

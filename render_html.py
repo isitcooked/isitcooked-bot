@@ -246,3 +246,84 @@ body{{width:1080px;height:1350px;overflow:hidden;background:#0a0a13;font-family:
 {body}
 <div class='foot'><div>Data: DexScreener, RugCheck</div><div>Not financial advice. DYOR.</div></div></body></html>"""
     return to_png(doc, out)
+
+
+# ---------- Instagram carousel slides 2-4 for a token (slide 1 is the main token card) ----------
+def _chain_img(key, size=54):
+    cp = pathlib.Path(__file__).parent / "chains" / f"{key}.png"
+    if not cp.exists():
+        return ""
+    import base64
+    return (f"<img src='data:image/png;base64,{base64.b64encode(cp.read_bytes()).decode()}' "
+            f"style='width:{size}px;height:{size}px;border-radius:50%;vertical-align:middle;margin-right:12px;border:3px solid #111'>")
+
+
+def token_slide(kind, d, pal, i, total, out, brand):
+    """kind: numbers | flags | verify. d: symbol, chain, chain_key, explorer, address, metrics, risk_list, copies."""
+    import re as _re
+    e = _h.escape
+    a2c = pal["a2"] if max(pal["a2"]) >= 200 else tuple(min(255, int(v * 0.35 + 255 * 0.65)) for v in pal["a1"])
+    a1, a2 = rgb(pal["a1"]), rgb(a2c)
+    head = (f"<div class='tk'>${e(d['symbol'])}</div>"
+            f"<div class='sticker chainb'>{_chain_img(d.get('chain_key', ''))}{e(d['chain'].upper())}</div>")
+    if kind == "numbers":
+        tiles = ""
+        for k, (label, value, tone) in enumerate(d["metrics"]):
+            bg = [f"rgb({a2})", "#fff", f"rgb({a1})", "#fff"][k % 4]
+            col = "#ff3d52" if tone == "red" else "#111"
+            tiles += (f"<div class='tile' style='background:{bg};transform:rotate({[-1.6, 1.4, 1.2, -1.2][k % 4]}deg)'>"
+                      f"<div class='tl'>{e(label)}</div><div class='tv' style='color:{col}'>{e(value)}</div></div>")
+        body = f"<div class='sticker ttl'>THE NUMBERS</div><div class='grid'>{tiles}</div>"
+    elif kind == "flags":
+        rows = ""
+        items = list(d["risk_list"])[:5]
+        if d.get("copies", 0) > 1:
+            items = [f"{d['copies']} tokens share this ticker (danger)"] + items[:4]
+        if not items:
+            items = [("No flags found by the scanner (ok)" if d.get("risks_known") else "Security scan unavailable (unknown)")]
+        for it in items:
+            m = _re.match(r"^(.*?)\s*\((\w+)\)$", it)
+            name, lvl = (m.group(1), m.group(2).lower()) if m else (it, "warn")
+            col, sym = {"danger": ("#ff3d52", "!"), "warn": ("#ffb020", "!"), "ok": ("#18e08a", "OK")}.get(lvl, ("#9aa0aa", "?"))
+            rows += (f"<div class='row'><div class='bd' style='background:{col}'>{sym}</div><div class='rt'>{e(name)}</div></div>")
+        body = f"<div class='sticker ttl'>FLAGS FOUND</div><div class='rows'>{rows}</div>"
+    else:
+        steps = [f"Get the contract from the project's official link, never from a reply or a DM.",
+                 f"Open it on {d['explorer']} and check it matches the address below.",
+                 "Compare liquidity and holders before you trust the ticker."]
+        cards = "".join(f"<div class='step'><div class='sn'>{n}</div><div class='st2'>{e(t)}</div></div>" for n, t in enumerate(steps, 1))
+        body = (f"<div class='sticker ttl'>VERIFY FIRST</div><div class='steps'>{cards}</div>"
+                f"<div class='cab'><div class='cal'>CONTRACT ON {e(d['chain'].upper())}</div><div class='cav'>{e(d['address'])}</div></div>"
+                f"<div class='sticker cta'>FOLLOW {e(brand)}</div>")
+    doc = f"""<html><head><meta charset='utf-8'><style>{FACES}{_face('Fredoka','FredokaOne-Regular.ttf',400)}{_face('Pop','Poppins-Bold.ttf',700)}{_face('PopM','Poppins-Medium.ttf',500)}
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{width:1080px;height:1350px;overflow:hidden;background:#0a0a13;font-family:'Pop';color:#fff;position:relative}}
+.burst{{position:absolute;left:-300px;top:-300px;width:1680px;height:1680px;border-radius:50%;
+ background:repeating-conic-gradient(from 0deg at 50% 50%,rgba({a1},.22) 0deg 7deg,transparent 7deg 15deg);
+ -webkit-mask-image:radial-gradient(circle at 50% 50%,#000 0%,transparent 50%)}}
+.sticker{{display:inline-block;border:6px solid #111;border-radius:16px;box-shadow:9px 9px 0 #000;padding:10px 24px;font-family:'Fredoka';font-size:38px;color:#111}}
+.top{{position:absolute;left:64px;right:64px;top:56px;display:flex;justify-content:space-between;align-items:center}}
+.brand{{background:rgb({a2});transform:rotate(-3deg)}} .pg{{background:#fff;transform:rotate(3deg);font-size:28px}}
+.tk{{position:absolute;left:64px;top:170px;font-family:'Pop';font-weight:700;font-size:118px;line-height:1.1;-webkit-text-stroke:12px #000;paint-order:stroke fill;text-shadow:8px 8px 0 #000}}
+.chainb{{position:absolute;right:64px;top:196px;background:#fff;transform:rotate(4deg);font-size:32px;padding:8px 22px 8px 12px}}
+.ttl{{position:absolute;left:64px;top:340px;background:rgb({a1});transform:rotate(-2deg);font-size:46px}}
+.grid{{position:absolute;left:64px;right:64px;top:470px;display:flex;flex-wrap:wrap;gap:36px}}
+.tile{{width:446px;height:300px;border:6px solid #111;border-radius:28px;box-shadow:12px 12px 0 #000;padding:30px 34px;color:#111}}
+.tl{{font-family:'PopM';font-size:26px;letter-spacing:.06em}} .tv{{font-family:'Fredoka';font-size:92px;line-height:1.1;margin-top:46px;white-space:nowrap}}
+.rows{{position:absolute;left:64px;right:64px;top:470px}}
+.row{{display:flex;align-items:center;background:#fff;border:6px solid #111;border-radius:24px;box-shadow:9px 9px 0 #000;margin-bottom:22px;padding:14px 22px;color:#111;height:112px}}
+.bd{{width:70px;height:70px;border:5px solid #111;border-radius:16px;display:flex;align-items:center;justify-content:center;font-family:'Fredoka';font-size:38px;margin-right:24px;flex:none}}
+.rt{{font-family:'Pop';font-weight:700;font-size:34px;line-height:1.1}}
+.steps{{position:absolute;left:64px;right:64px;top:466px}}
+.step{{display:flex;align-items:center;background:#fff;border:6px solid #111;border-radius:24px;box-shadow:9px 9px 0 #000;margin-bottom:20px;padding:14px 24px;color:#111;height:128px}}
+.sn{{font-family:'Fredoka';font-size:60px;margin-right:24px;color:rgb({a1});-webkit-text-stroke:3px #111;flex:none}}
+.st2{{font-family:'PopM';font-size:29px;line-height:1.2}}
+.cab{{position:absolute;left:64px;right:64px;top:944px;background:#000;border:4px solid rgba(255,255,255,.6);border-radius:28px;padding:20px 28px}}
+.cal{{font-family:'PopM';font-size:21px;letter-spacing:.1em;color:rgb({a2})}} .cav{{font-family:'PopM';font-size:32px;margin-top:8px;word-break:break-all;line-height:1.25}}
+.cta{{position:absolute;left:150px;right:150px;top:1150px;text-align:center;background:rgb({a2});font-size:46px;transform:rotate(-2deg)}}
+.foot{{position:absolute;left:64px;right:64px;bottom:20px;display:flex;justify-content:space-between;font-family:'PopM';font-size:17px;color:rgba(255,255,255,.62)}}
+</style></head><body><div class='burst'></div>
+<div class='top'><div class='sticker brand'>{e(brand)}</div><div class='sticker pg'>{i + 1}/{total}</div></div>
+{head}{body}
+<div class='foot'><div>Data: DexScreener, RugCheck / GoPlus</div><div>Not financial advice. DYOR.</div></div></body></html>"""
+    return to_png(doc, out)
