@@ -134,7 +134,12 @@ def build_data(pair, risks):
     if liq:
         facts.append(f"Volume to liquidity ratio: {vol / liq:.1f}x")
     facts.append(f"Chain: {CHAIN_NAMES.get(pair['chainId'], pair['chainId'])}")
-    facts.append("Risk flags: " + ("; ".join(risks) if risks else "none reported or unavailable"))
+    if risks is None:
+        facts.append("Security scan: unavailable for this token (not the same as no flags)")
+    elif not risks:
+        facts.append("Security scan: no flags reported by the scanner")
+    else:
+        facts.append("Scanner flags: " + "; ".join(risks))
     chg = (pair.get("priceChange") or {}).get("h24", 0)
     metrics = [("LIQUIDITY", fmt_usd(liq), None), ("24H VOLUME", fmt_usd(vol), None), ("PAIR AGE", age, None),
                ("24H CHANGE", f"{chg:+.1f}%", "red" if chg < 0 else "green")]
@@ -235,9 +240,11 @@ def mock_generate(job, data, fmt, platform):
             "text": f"Memecoin basics: {data['topic']}.\n\nCheck this before trusting any token."}
 
 
-ALERT_RULES = ("ALERT FORMAT: put exactly 2 posts in the text array. Post 1 (max 170 chars): hook with the ticker, the chain and the single "
-               "most important fact. Post 2 (max 260 chars): breakdown with 'Green flags:' and 'Red flags:' using only DATA.facts "
-               "(write 'none found' when there are none) and say what stands out and why it is worth checking, never why to buy. "
+ALERT_RULES = ("ALERT FORMAT: put exactly 2 posts in the text array. Post 1 (max 170 chars): start with $TICKER and the chain, then the single "
+               "most notable fact from DATA.facts (e.g. age, liquidity, or the number of tokens sharing the ticker). "
+               "Post 2 (max 260 chars): start with 'What stands out:' and give 2-3 neutral observations from the data, then 'Scanner:' with the "
+               "scanner result exactly as DATA.facts says (flags listed, 'no flags reported', or 'scan unavailable'; never turn 'unavailable' into 'none'), "
+               "then one thing to double-check. NEVER call liquidity, volume, FDV or age 'green flags' or 'good', never praise the token, never say why to buy. "
                "The contract, the how-to-verify post and the disclaimer are appended automatically: do not write them. ")
 
 
@@ -318,7 +325,7 @@ def save_outbox(job, parts, image):
     for f in box.glob("*.md"):
         if time.time() - f.stat().st_mtime > 30 * 86400:
             f.unlink()
-    name = f"{dt.datetime.utcnow():%Y%m%d_%H%M}_{job}.md"
+    name = f"{dt.datetime.now(dt.timezone.utc):%Y%m%d_%H%M}_{job}.md"
     imgs = image if isinstance(image, list) else ([image] if image else [])
     img = "".join(f"\n\n---\n\nIMAGE: public/{pathlib.Path(i).name}" for i in imgs)
     (box / name).write_text("\n\n---\n\n".join(parts) + img, encoding="utf-8")
@@ -356,7 +363,7 @@ def with_contract(out, data):
 
 
 def hold(job, out, problems):
-    name = f"{dt.datetime.utcnow():%Y%m%d_%H%M}_{job}.json"
+    name = f"{dt.datetime.now(dt.timezone.utc):%Y%m%d_%H%M}_{job}.json"
     (HELD / name).write_text(json.dumps({"problems": problems, "output": out}, indent=1))
     print("HELD:", problems)
 
