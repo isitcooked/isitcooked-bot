@@ -1,0 +1,9 @@
+{
+ "files": [
+  "ig_20261115_gtacoin_s1_card.jpg",
+  "ig_20261115_gtacoin_s2.jpg",
+  "ig_20261115_gtacoin_s3.jpg",
+  "ig_20261115_gtacoin_s4.jpg"
+ ],
+ "caption": "gtacoin on Solana shows a -100.0% 24h price change. Here's what we're seeing in the on-chain data.\n\nSolana CA: DSKM3d518BBaQShSKqaqZcG1XMRf81UFB6a1eavhSTNK\n\nGreen flags: Liquidity $117.9K, 318 buys / 290 sells. Red flags: -100.0% 24h price change, 0.2x volume to liquidity ratio, 27 tokens sharing this ticker. The wipeout and copycat count stand out\u2014worth checking the pair closely.\n\nHow to verify: open this contract on Solscan, check that it matches the project's official link, and compare liquidity before trusting a ticker.\n\nNot financial advice. DYOR.\n\nWhich red flag would make you skip this one? Tell us below.\n\n#memecoins #cryptorisk #dexscreener #solana"
+}
