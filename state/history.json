@@ -38,5 +38,13 @@
   "price": "0.002066",
   "risk_count": 0,
   "ts": 1794748027.0502932
+ },
+ {
+  "symbol": "CBUCKS",
+  "address": "DtcicPCKTKeAh7TDEzTym3hXeoHAoMiBdYJhMYxZpump",
+  "chain": "solana",
+  "price": "0.003545",
+  "risk_count": 0,
+  "ts": 1794748878.0827944
  }
 ]
