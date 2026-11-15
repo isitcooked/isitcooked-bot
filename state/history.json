@@ -62,5 +62,13 @@
   "price": "0.0001798",
   "risk_count": 0,
   "ts": 1794769492.1769762
+ },
+ {
+  "symbol": "BUTTHOLE",
+  "address": "4B8CdHPZ8ng1CtMP2Jk2W8wGAwJ5nJnap1deVsz2pump",
+  "chain": "solana",
+  "price": "0.0002844",
+  "risk_count": 0,
+  "ts": 1794771123.8913128
  }
 ]
