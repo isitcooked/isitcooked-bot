@@ -54,5 +54,13 @@
   "price": "0.00001617",
   "risk_count": 0,
   "ts": 1794756911.39338
+ },
+ {
+  "symbol": "DIGS",
+  "address": "9QT8K685Hrae4k11dhGXirdtpfAaimExtyfwt8cPpump",
+  "chain": "solana",
+  "price": "0.0001798",
+  "risk_count": 0,
+  "ts": 1794769492.1769762
  }
 ]
