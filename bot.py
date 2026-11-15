@@ -242,15 +242,23 @@ ALERT_RULES = ("ALERT FORMAT: put exactly 2 posts in the text array. Post 1 (max
 
 
 def gemini_text(system, user):
-    """Free writer: Gemini via Google AI Studio key (free tier, Flash models)."""
-    model = os.getenv("GEMINI_MODEL") or "gemini-2.5-flash"
-    r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                      headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]},
-                      json={"systemInstruction": {"parts": [{"text": system}]},
-                            "contents": [{"role": "user", "parts": [{"text": user}]}],
-                            "generationConfig": {"temperature": 0.8, "responseMimeType": "application/json"}}, timeout=90)
-    r.raise_for_status()
-    return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+    """Free writer: Gemini via Google AI Studio key. Tries GEMINI_MODEL, then newer/older free models until one works."""
+    models = [m for m in [os.getenv("GEMINI_MODEL"), "gemini-4-hydrogen", "gemini-2.5-flash"] if m]
+    last = None
+    for model in models:
+        try:
+            r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                              headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]},
+                              json={"systemInstruction": {"parts": [{"text": system}]},
+                                    "contents": [{"role": "user", "parts": [{"text": user}]}],
+                                    "generationConfig": {"temperature": 0.8, "responseMimeType": "application/json"}}, timeout=120)
+            r.raise_for_status()
+            print("Gemini model used:", model)
+            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception as e:
+            print(f"Gemini model {model} failed: {e}")
+            last = e
+    raise last
 
 
 def generate(job, data, fmt, platform):
