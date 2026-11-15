@@ -70,5 +70,13 @@
   "price": "0.0002844",
   "risk_count": 0,
   "ts": 1794771123.8913128
+ },
+ {
+  "symbol": "Nyajira",
+  "address": "8cWGfiHyKqxgLrLtkPt2NnLkSUV2JbcLBf4RN6Fapump",
+  "chain": "solana",
+  "price": "0.00005825",
+  "risk_count": 0,
+  "ts": 1794772845.567124
  }
 ]
