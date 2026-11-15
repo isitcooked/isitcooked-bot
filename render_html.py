@@ -327,3 +327,26 @@ body{{width:1080px;height:1350px;overflow:hidden;background:#0a0a13;font-family:
 {head}{body}
 <div class='foot'><div>Data: DexScreener, RugCheck / GoPlus</div><div>Not financial advice. DYOR.</div></div></body></html>"""
     return to_png(doc, out)
+
+
+def avatar_card(out, brand_pal=None):
+    """1080x1080 profile picture: flame + question mark on the brand burst. Safe inside a circular crop."""
+    pal = brand_pal or BRAND_PAL
+    a1, a2 = rgb(pal["a1"]), rgb(pal["a2"])
+    doc = f"""<html><head><meta charset='utf-8'><style>{_face('Fredoka','FredokaOne-Regular.ttf',400)}
+*{{margin:0;padding:0}}
+body{{width:1080px;height:1080px;overflow:hidden;background:#0a0a13;position:relative}}
+.burst{{position:absolute;left:-300px;top:-300px;width:1680px;height:1680px;border-radius:50%;
+ background:repeating-conic-gradient(from 0deg at 50% 50%,rgba({a1},.55) 0deg 8deg,transparent 8deg 18deg);
+ -webkit-mask-image:radial-gradient(circle at 50% 50%,#000 0%,transparent 60%)}}
+.glow{{position:absolute;left:190px;top:190px;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba({a1},.7),transparent 68%)}}
+svg{{position:absolute;left:250px;top:90px;width:580px;height:754px;filter:drop-shadow(14px 14px 0 #000)}}
+.q{{position:absolute;left:0;right:0;top:230px;text-align:center;font-family:'Fredoka';font-size:600px;line-height:1;color:#fff;
+ -webkit-text-stroke:34px #000;paint-order:stroke fill;text-shadow:18px 18px 0 #000;transform:rotate(-6deg)}}
+</style></head><body><div class='burst'></div><div class='glow'></div>
+<svg viewBox='0 0 200 260'>
+<path d='M100 8 C112 52 168 82 168 150 C168 208 136 250 100 250 C64 250 32 208 32 150 C32 118 48 98 62 80 C64 104 78 112 88 108 C80 76 92 40 100 8 Z' fill='rgb({a1})' stroke='#000' stroke-width='9' stroke-linejoin='round'/>
+<path d='M100 110 C108 138 140 152 140 188 C140 222 122 242 100 242 C78 242 60 222 60 188 C60 160 80 150 90 132 C92 148 98 150 104 148 C98 134 98 122 100 110 Z' fill='rgb({a2})'/>
+</svg>
+<div class='q'>?</div></body></html>"""
+    return to_png(doc, out, 1080, 1080)

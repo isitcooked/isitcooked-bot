@@ -473,23 +473,42 @@ def render_carousel(slides, prefix):
     return files
 
 
+IG_HOST = os.getenv("IG_HOST") or "https://graph.instagram.com"  # Instagram Login tokens work on this host (no Facebook Page needed)
+
+
+def _ig_post(url, data):
+    r = requests.post(url, data=data, timeout=40)
+    if not r.ok:
+        raise RuntimeError(f"Instagram API error {r.status_code}: {r.text[:400]}")
+    return r.json()
+
+
+def _ig_wait(cid, tok, tries=20):
+    for _ in range(tries):
+        r = requests.get(f"{IG_HOST}/{cid}", params={"fields": "status_code", "access_token": tok}, timeout=30)
+        st = r.json().get("status_code") if r.ok else None
+        if st == "FINISHED":
+            return
+        if st in ("ERROR", "EXPIRED"):
+            raise RuntimeError(f"Instagram media container {st}")
+        time.sleep(4)
+
+
 def ig_publish(image_urls, caption):
-    """Instagram Graph API (professional account): single image or carousel (all slides 4:5 JPEG)."""
-    G, uid, tok = "https://graph.facebook.com/v21.0", os.environ["IG_USER_ID"], os.environ["IG_ACCESS_TOKEN"]
+    """Single image or carousel (all slides 4:5 JPEG) on a professional Instagram account."""
+    uid, tok = os.environ["IG_USER_ID"], os.environ["IG_ACCESS_TOKEN"]
     if len(image_urls) == 1:
-        data = {"image_url": image_urls[0], "caption": caption, "access_token": tok}
+        cid = _ig_post(f"{IG_HOST}/{uid}/media", {"image_url": image_urls[0], "caption": caption, "access_token": tok})["id"]
     else:
         kids = []
         for u in image_urls:
-            r = requests.post(f"{G}/{uid}/media", data={"image_url": u, "is_carousel_item": "true", "access_token": tok}, timeout=30)
-            r.raise_for_status()
-            kids.append(r.json()["id"])
-        data = {"media_type": "CAROUSEL", "children": ",".join(kids), "caption": caption, "access_token": tok}
-    r = requests.post(f"{G}/{uid}/media", data=data, timeout=30)
-    r.raise_for_status()
-    cid = r.json()["id"]
-    time.sleep(15)
-    requests.post(f"{G}/{uid}/media_publish", data={"creation_id": cid, "access_token": tok}, timeout=30).raise_for_status()
+            k = _ig_post(f"{IG_HOST}/{uid}/media", {"image_url": u, "is_carousel_item": "true", "access_token": tok})["id"]
+            _ig_wait(k, tok)
+            kids.append(k)
+        cid = _ig_post(f"{IG_HOST}/{uid}/media", {"media_type": "CAROUSEL", "children": ",".join(kids),
+                                                   "caption": caption, "access_token": tok})["id"]
+    _ig_wait(cid, tok)
+    _ig_post(f"{IG_HOST}/{uid}/media_publish", {"creation_id": cid, "access_token": tok})
 
 
 # ---------- jobs ----------
@@ -571,6 +590,24 @@ def render_ig_slides(data, out, prefix):
     return jpgs
 
 
+def build_ig_caption(out, data):
+    """Hook first (only ~125 chars show before 'more'), then substance, contract, save/share + question CTAs, keywords, 5 hashtags."""
+    t = data["token"]
+    ca = f"{t['chain_name']} CA: {t['address']}"
+    parts = []
+    for p in out["text"]:
+        p = p.replace(ca, "").replace("Which red flag would make you skip this one?\n\n", "").strip()
+        if p:
+            parts.append(p)
+    hook, middle, verify = parts[0], parts[1:-1], parts[-1]
+    tags = " ".join(["#memecoins", "#cryptoeducation", "#cryptorisk", HASHTAGS.get(t["chain"], "#crypto"), "#dexscreener"])
+    return "\n\n".join([hook, *middle, ca,
+                         "Save this post to check your next token, and send it to a friend who trades memecoins.",
+                         "Which red flag would make you skip this one? Tell us below.",
+                         f"Memecoin risk check on {t['chain_name']}: liquidity, contract and scanner flags.",
+                         verify, tags])
+
+
 def job_ig_prepare():
     for f in list(PUBLIC.glob("*.png")) + list(PUBLIC.glob("*.jpg")):
         if time.time() - f.stat().st_mtime > 14 * 86400:
@@ -587,9 +624,7 @@ def job_ig_prepare():
         return hold("ig", out, problems)
     prefix = re.sub(r"\W", "", f"ig_{dt.date.today():%Y%m%d}_{data['token']['symbol'][:8]}")
     files = render_ig_slides(data, out, prefix)
-    tags = " ".join(["#memecoins", "#cryptorisk", "#dexscreener", HASHTAGS.get(data["token"]["chain"], "#crypto")])
-    caption = ("\n\n".join(out["text"]).replace("Which red flag would make you skip this one?\n\n", "")
-               + "\n\nWhich red flag would make you skip this one? Tell us below.\n\n" + tags)
+    caption = build_ig_caption(out, data)
     save("ig_next", {"files": [f.name for f in files], "caption": caption})
     print("prepared", [f.name for f in files])
 
