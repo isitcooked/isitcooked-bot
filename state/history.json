@@ -30,5 +30,13 @@
   "price": "0.0002162",
   "risk_count": 0,
   "ts": 1794684641.6395457
+ },
+ {
+  "symbol": "PURR",
+  "address": "8RNUw4N655VSrZKuhGdywhbSMDTrheguFPfxbpE2NZHQ",
+  "chain": "solana",
+  "price": "0.002066",
+  "risk_count": 0,
+  "ts": 1794748027.0502932
  }
 ]
