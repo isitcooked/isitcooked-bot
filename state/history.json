@@ -78,5 +78,13 @@
   "price": "0.00005825",
   "risk_count": 0,
   "ts": 1794772845.567124
+ },
+ {
+  "symbol": "penny",
+  "address": "5gmCPpuktJ7Svjgr4PPJBTosAFKB8K6Z45EGfSUmpump",
+  "chain": "solana",
+  "price": "0.00001126",
+  "risk_count": 1,
+  "ts": 1794847095.2540298
  }
 ]
