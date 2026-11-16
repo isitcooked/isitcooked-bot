@@ -248,23 +248,58 @@ ALERT_RULES = ("ALERT FORMAT: put exactly 2 posts in the text array. Post 1 (max
                "The contract, the how-to-verify post and the disclaimer are appended automatically: do not write them. ")
 
 
-def gemini_text(system, user):
-    """Free writer: Gemini via Google AI Studio key. Tries GEMINI_MODEL, then newer/older free models until one works."""
-    models = [m for m in [os.getenv("GEMINI_MODEL"), "gemini-4-hydrogen", "gemini-2.5-flash"] if m]
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta"
+
+
+def _gemini_call(model, system, user):
+    """One model, retrying temporary errors (503/429/5xx) with waits."""
     last = None
-    for model in models:
-        try:
-            r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                              headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]},
-                              json={"systemInstruction": {"parts": [{"text": system}]},
-                                    "contents": [{"role": "user", "parts": [{"text": user}]}],
-                                    "generationConfig": {"temperature": 0.8, "responseMimeType": "application/json"}}, timeout=120)
-            r.raise_for_status()
-            print("Gemini model used:", model)
-            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception as e:
-            print(f"Gemini model {model} failed: {e}")
-            last = e
+    for wait in (0, 8, 25):
+        if wait:
+            time.sleep(wait)
+        r = requests.post(f"{GEMINI_URL}/models/{model}:generateContent",
+                          headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"].strip()},
+                          json={"systemInstruction": {"parts": [{"text": system}]},
+                                "contents": [{"role": "user", "parts": [{"text": user}]}],
+                                "generationConfig": {"temperature": 0.8, "responseMimeType": "application/json"}}, timeout=120)
+        if r.status_code in (429, 500, 502, 503, 504):
+            last = RuntimeError(f"{r.status_code} for {model}")
+            print(f"Gemini {model}: temporary error {r.status_code}, retrying")
+            continue
+        r.raise_for_status()
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+    raise last
+
+
+def _gemini_discover():
+    """Ask Google which models this key can use (model names change over time)."""
+    try:
+        r = requests.get(f"{GEMINI_URL}/models", params={"pageSize": 100},
+                         headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"].strip()}, timeout=30)
+        names = [m["name"].split("/")[-1] for m in r.json().get("models", [])
+                 if "generateContent" in m.get("supportedGenerationMethods", [])]
+    except Exception as e:
+        print("model discovery failed:", e)
+        return []
+    ok = [n for n in names if n.startswith("gemini") and not any(x in n for x in
+          ("embedding", "image", "tts", "live", "audio", "robotics", "computer", "vision"))]
+    return sorted([n for n in ok if "flash" in n], reverse=True) + sorted([n for n in ok if "flash" not in n], reverse=True)
+
+
+def gemini_text(system, user):
+    """Free writer. Tries GEMINI_MODEL / gemini-4-hydrogen, then whatever models Google lists for this key."""
+    tried, last = [], None
+    for model in [m for m in [os.getenv("GEMINI_MODEL"), "gemini-4-hydrogen"] if m] + [None]:
+        models = [model] if model else [m for m in _gemini_discover() if m not in tried][:3]
+        for m in models:
+            tried.append(m)
+            try:
+                out = _gemini_call(m, system, user)
+                print("Gemini model used:", m)
+                return out
+            except Exception as e:
+                print(f"Gemini model {m} failed: {e}")
+                last = e
     raise last
 
 
@@ -473,7 +508,9 @@ def render_carousel(slides, prefix):
     return files
 
 
-IG_HOST = os.getenv("IG_HOST") or "https://graph.instagram.com"  # Instagram Login tokens work on this host (no Facebook Page needed)
+def _ig_hosts():
+    h = (os.getenv("IG_HOST") or "").strip().rstrip("/")
+    return [h] if h else ["https://graph.instagram.com", "https://graph.facebook.com"]
 
 
 def _ig_post(url, data):
@@ -483,9 +520,9 @@ def _ig_post(url, data):
     return r.json()
 
 
-def _ig_wait(cid, tok, tries=20):
+def _ig_wait(host, cid, tok, tries=20):
     for _ in range(tries):
-        r = requests.get(f"{IG_HOST}/{cid}", params={"fields": "status_code", "access_token": tok}, timeout=30)
+        r = requests.get(f"{host}/{cid}", params={"fields": "status_code", "access_token": tok}, timeout=30)
         st = r.json().get("status_code") if r.ok else None
         if st == "FINISHED":
             return
@@ -494,21 +531,36 @@ def _ig_wait(cid, tok, tries=20):
         time.sleep(4)
 
 
-def ig_publish(image_urls, caption):
-    """Single image or carousel (all slides 4:5 JPEG) on a professional Instagram account."""
-    uid, tok = os.environ["IG_USER_ID"], os.environ["IG_ACCESS_TOKEN"]
+def _ig_publish_on(host, uid, tok, image_urls, caption):
     if len(image_urls) == 1:
-        cid = _ig_post(f"{IG_HOST}/{uid}/media", {"image_url": image_urls[0], "caption": caption, "access_token": tok})["id"]
+        cid = _ig_post(f"{host}/{uid}/media", {"image_url": image_urls[0], "caption": caption, "access_token": tok})["id"]
     else:
         kids = []
         for u in image_urls:
-            k = _ig_post(f"{IG_HOST}/{uid}/media", {"image_url": u, "is_carousel_item": "true", "access_token": tok})["id"]
-            _ig_wait(k, tok)
+            k = _ig_post(f"{host}/{uid}/media", {"image_url": u, "is_carousel_item": "true", "access_token": tok})["id"]
+            _ig_wait(host, k, tok)
             kids.append(k)
-        cid = _ig_post(f"{IG_HOST}/{uid}/media", {"media_type": "CAROUSEL", "children": ",".join(kids),
-                                                   "caption": caption, "access_token": tok})["id"]
-    _ig_wait(cid, tok)
-    _ig_post(f"{IG_HOST}/{uid}/media_publish", {"creation_id": cid, "access_token": tok})
+        cid = _ig_post(f"{host}/{uid}/media", {"media_type": "CAROUSEL", "children": ",".join(kids),
+                                               "caption": caption, "access_token": tok})["id"]
+    _ig_wait(host, cid, tok)
+    _ig_post(f"{host}/{uid}/media_publish", {"creation_id": cid, "access_token": tok})
+
+
+def ig_publish(image_urls, caption):
+    """Single image or carousel (4:5 JPEG). Tries graph.instagram.com, then graph.facebook.com if the token is not accepted."""
+    uid = os.environ["IG_USER_ID"].strip()
+    tok = os.environ["IG_ACCESS_TOKEN"].strip().strip("\"'")
+    last = None
+    for host in _ig_hosts():
+        try:
+            return _ig_publish_on(host, uid, tok, image_urls, caption)
+        except RuntimeError as e:
+            last = e
+            if "OAuth" in str(e) or "access token" in str(e).lower():
+                print(f"{host}: token not accepted ({str(e)[:120]}), trying the next host")
+                continue
+            raise
+    raise last
 
 
 # ---------- jobs ----------
