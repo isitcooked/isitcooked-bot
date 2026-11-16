@@ -696,7 +696,28 @@ def job_ig_publish():
     (STATE / "ig_next.json").unlink(missing_ok=True)
 
 
-JOBS = {"alert": job_alert, "brief": job_brief, "scoreboard": job_scoreboard, "education": job_education,
+def job_diagnose():
+    """Read-only Meta check: what this token is, which permissions it has, which pages/accounts it can see."""
+    tok = os.environ["IG_ACCESS_TOKEN"].strip().strip("\"'")
+    uid = os.environ["IG_USER_ID"].strip()
+    print(f"token starts with '{tok[:4]}', length {len(tok)}; account id starts with '{uid[:4]}', length {len(uid)}")
+    checks = [
+        ("FB host /me", "https://graph.facebook.com/me", {"fields": "id,name"}),
+        ("FB host permissions", "https://graph.facebook.com/me/permissions", {}),
+        ("FB host pages", "https://graph.facebook.com/me/accounts", {"fields": "name,id,instagram_business_account"}),
+        ("FB host IG account", f"https://graph.facebook.com/{uid}", {"fields": "username,name"}),
+        ("FB host publish limit", f"https://graph.facebook.com/{uid}/content_publishing_limit", {"fields": "quota_usage,config"}),
+        ("IG host /me", "https://graph.instagram.com/me", {"fields": "user_id,username"}),
+    ]
+    for label, url, params in checks:
+        try:
+            r = requests.get(url, params=dict(params, access_token=tok), timeout=30)
+            print(f"[{label}] {r.status_code} {r.text[:700].replace(tok, '***')}")
+        except Exception as e:
+            print(f"[{label}] failed: {e}")
+
+
+JOBS = {"diagnose": job_diagnose, "alert": job_alert, "brief": job_brief, "scoreboard": job_scoreboard, "education": job_education,
         "ig_prepare": job_ig_prepare, "ig_publish": job_ig_publish}
 
 if __name__ == "__main__":
