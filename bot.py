@@ -546,14 +546,14 @@ def _ig_publish_on(host, uid, tok, image_urls, caption):
     _ig_post(f"{host}/{uid}/media_publish", {"creation_id": cid, "access_token": tok})
 
 
-def ig_publish(image_urls, caption):
-    """Single image or carousel (4:5 JPEG). Tries graph.instagram.com, then graph.facebook.com if the token is not accepted."""
+def _ig_try_hosts(fn):
+    """Run fn(host, uid, tok) on graph.instagram.com, then graph.facebook.com if the token is not accepted."""
     uid = os.environ["IG_USER_ID"].strip()
     tok = os.environ["IG_ACCESS_TOKEN"].strip().strip("\"'")
     last = None
     for host in _ig_hosts():
         try:
-            return _ig_publish_on(host, uid, tok, image_urls, caption)
+            return fn(host, uid, tok)
         except RuntimeError as e:
             last = e
             if "OAuth" in str(e) or "access token" in str(e).lower():
@@ -561,6 +561,22 @@ def ig_publish(image_urls, caption):
                 continue
             raise
     raise last
+
+
+def ig_publish(image_urls, caption):
+    """Single image or carousel (4:5 JPEG)."""
+    return _ig_try_hosts(lambda h, u, t: _ig_publish_on(h, u, t, image_urls, caption))
+
+
+def _ig_story_on(host, uid, tok, image_url):
+    cid = _ig_post(f"{host}/{uid}/media", {"image_url": image_url, "media_type": "STORIES", "access_token": tok})["id"]
+    _ig_wait(host, cid, tok)
+    _ig_post(f"{host}/{uid}/media_publish", {"creation_id": cid, "access_token": tok})
+
+
+def ig_publish_story(image_url):
+    """One 9:16 JPEG story (the API does not support interactive stickers)."""
+    return _ig_try_hosts(lambda h, u, t: _ig_story_on(h, u, t, image_url))
 
 
 # ---------- jobs ----------
@@ -717,7 +733,127 @@ def job_diagnose():
             print(f"[{label}] failed: {e}")
 
 
-JOBS = {"diagnose": job_diagnose, "alert": job_alert, "brief": job_brief, "scoreboard": job_scoreboard, "education": job_education,
+TIPS = [
+    ("Liquidity is your exit door", "If a pool is tiny, buying is easy but selling moves the price against you. Check liquidity before anything else."),
+    ("Same name, different token", "Anyone can launch a token with a famous name. Only the contract address tells them apart. Always verify it."),
+    ("Never trust a CA in a reply", "Scammers reply under viral posts with fake contracts. Get the address from the project's official link."),
+    ("Check who holds the supply", "If a few wallets hold most of the supply, they can dump on you. Look at the holder list before you trust a chart."),
+    ("Fresh token, fresh risk", "Tokens only hours old have almost no history. Treat age as a risk factor, not a detail."),
+    ("Volume can be faked", "Wash trading inflates volume to look alive. Compare volume to liquidity: extreme ratios deserve a second look."),
+    ("Mint authority matters", "If the creator can still mint new tokens, supply can be inflated at any time. Check that mint authority is revoked."),
+    ("Freeze authority", "On Solana, a freeze authority can lock tokens in your wallet. Check whether it is disabled."),
+    ("Honeypots exist", "Some contracts let you buy but block selling. Run a honeypot check before you buy on BNB Chain or Ethereum."),
+    ("Unverified code is a red flag", "If a contract's code is not verified on the explorer, you cannot read what it does."),
+    ("A locked pool is not a guarantee", "An LP lock helps, but it does not protect you from every rug or from a team selling a large share."),
+    ("Taxes can trap you", "Some EVM tokens charge huge sell taxes. Check buy and sell tax before you trade."),
+    ("Charts hide the contract", "Price action says nothing about the contract, the team or the liquidity. Look underneath the chart."),
+    ("A screenshot is not research", "A screenshot of gains proves nothing about the next trade. Verify the token yourself."),
+    ("FOMO is the product", "Memecoins sell urgency. If you feel rushed, that is the moment to slow down and check the basics."),
+    ("Position size is survival", "Only risk what you can afford to lose completely. Memecoins can go to zero fast."),
+    ("Use a separate wallet", "Keep a second wallet with a small balance for experiments. Never connect your main wallet to random sites."),
+    ("Approvals are permissions", "Review and revoke old token approvals regularly. A forgotten approval can be abused."),
+    ("Beware fake links", "Typo domains and fake airdrop pages drain wallets. Bookmark official sites instead of searching."),
+    ("Unsolicited DMs are scams", "Nobody legit DMs you first with a deal. Treat unsolicited messages as scams."),
+    ("Check the pair, not just the token", "The same token can trade in several pools. Make sure you look at the main pool with real liquidity."),
+    ("Boosted does not mean good", "Paid promotion only means someone paid for attention. It says nothing about safety."),
+    ("Mind your slippage", "Very high slippage can make you overpay or get sandwiched. Keep it as low as the trade allows."),
+    ("Test with a tiny trade", "A small first trade shows whether you can actually sell before you commit more."),
+    ("Learn the explorer", "The chain explorer shows holders, transfers and contract details for free. Learn the basics once."),
+    ("Check the creator wallet", "Look at whether the creator's wallet has launched and abandoned tokens before."),
+    ("Bundled launches", "When many wallets buy in the very first block, insiders may control the supply. Worth checking."),
+    ("Social proof can be bought", "Followers, likes and holder counts can be faked. Verify on-chain, not on socials."),
+    ("A flag is not a verdict", "Flags mean check more, not it is a scam. Judge the full picture."),
+    ("Write your exit plan first", "Decide your limits before you buy. Decisions made in the heat of a pump are usually worse."),
+]
+
+
+def _cleanup_old_images():
+    for f in list(PUBLIC.glob("*.png")) + list(PUBLIC.glob("*.jpg")):
+        if time.time() - f.stat().st_mtime > 14 * 86400:
+            f.unlink()
+
+
+def _to_story_jpg(png_path):
+    png_path = pathlib.Path(png_path)
+    jpg = png_path.with_suffix(".jpg")
+    Image.open(png_path).convert("RGB").save(jpg, "JPEG", quality=92)
+    png_path.unlink()
+    return jpg
+
+
+def job_story_tip_prepare():
+    _cleanup_old_images()
+    idx = (dt.date.today().toordinal() * 2) % len(TIPS)
+    title, body = TIPS[idx]
+    out = PUBLIC / f"story_tip_{dt.date.today():%Y%m%d}.png"
+    render_html.story_tip_card({"n": idx + 1, "title": title, "body": body}, out, BRAND.upper())
+    jpg = _to_story_jpg(out)
+    save("ig_story_next", {"file": jpg.name})
+    print("prepared tip story:", title)
+
+
+def pick_radar_data():
+    """Most active token (highest 24h volume, liquidity >= $25K) among today's scanned candidates; skips the last 3 used."""
+    recent = load("story_recent", [])
+    best = None
+    for c in candidates(40):
+        if c["tokenAddress"] in recent:
+            continue
+        try:
+            pair = best_pair(c["chainId"], c["tokenAddress"])
+        except Exception:
+            continue
+        if not pair or (pair.get("liquidity") or {}).get("usd", 0) < 25000:
+            continue
+        vol = (pair.get("volume") or {}).get("h24", 0)
+        if best is None or vol > best[0]:
+            best = (vol, c, pair)
+    if not best:
+        return None
+    _, c, pair = best
+    risks = rugcheck(c["tokenAddress"]) if c["chainId"] == "solana" else goplus_risks(c["chainId"], c["tokenAddress"])
+    return build_data(pair, risks)
+
+
+def job_story_radar_prepare():
+    _cleanup_old_images()
+    data = pick_radar_data()
+    if not data:
+        return print("no radar candidate")
+    t = data["token"]
+    recent = load("story_recent", [])
+    recent.append(t["address"])
+    save("story_recent", recent[-3:])
+    prefix = re.sub(r"\W", "", f"story_radar_{dt.date.today():%Y%m%d}_{t['symbol'][:8]}")
+    logo = get_logo(data, prefix)
+    pal = design.logo_palette(Image.open(logo))
+    m = {k: v for k, v, _ in data["metrics"]}
+    d = {"symbol": t["symbol"].upper()[:12], "chain": t["chain_name"], "chain_key": t["chain"], "verdict": verdict(data),
+         "stats": [("24h volume", m["24H VOLUME"]), ("Liquidity", m["LIQUIDITY"]), ("24h change", m["24H CHANGE"])],
+         "ca": short_ca(t["address"]), "updated": dt.datetime.now(dt.timezone.utc).strftime("%H:%M UTC")}
+    out = PUBLIC / f"{prefix}.png"
+    render_html.story_radar_card(d, logo, pal, out, BRAND.upper())
+    jpg = _to_story_jpg(out)
+    save("ig_story_next", {"file": jpg.name})
+    print("prepared radar story:", t["symbol"])
+
+
+def job_story_publish():
+    nxt = load("ig_story_next", None)
+    if not nxt or "file" not in nxt:
+        (STATE / "ig_story_next.json").unlink(missing_ok=True)
+        return print("no story prepared")
+    base = f"https://raw.githubusercontent.com/{os.environ.get('GITHUB_REPOSITORY', 'USER/REPO')}/main/public/"
+    if DRY_RUN or not os.getenv("IG_ACCESS_TOKEN"):
+        print("[DRY RUN STORY]", base + nxt["file"])
+        save_outbox("story", ["(story image)"], str(PUBLIC / nxt["file"]))
+    else:
+        ig_publish_story(base + nxt["file"])
+        print("story published")
+    (STATE / "ig_story_next.json").unlink(missing_ok=True)
+
+
+JOBS = {"diagnose": job_diagnose, "story_tip_prepare": job_story_tip_prepare, "story_radar_prepare": job_story_radar_prepare, "story_publish": job_story_publish, "alert": job_alert, "brief": job_brief, "scoreboard": job_scoreboard, "education": job_education,
         "ig_prepare": job_ig_prepare, "ig_publish": job_ig_publish}
 
 if __name__ == "__main__":

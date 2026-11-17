@@ -350,3 +350,83 @@ svg{{position:absolute;left:250px;top:90px;width:580px;height:754px;filter:drop-
 </svg>
 <div class='q'>?</div></body></html>"""
     return to_png(doc, out, 1080, 1080)
+
+
+# ---------- Instagram Stories (1080x1920; keep content inside the safe zone y 250-1600) ----------
+STORY_CSS = """
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1080px;height:1920px;overflow:hidden;background:#0a0a13;font-family:'Pop';color:#fff;position:relative}
+.burst{position:absolute;left:-400px;top:-200px;width:1880px;height:1880px;border-radius:50%;
+ background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(A1,.24) 0deg 7deg,transparent 7deg 15deg);
+ -webkit-mask-image:radial-gradient(circle at 50% 50%,#000 0%,transparent 50%)}
+.sticker{display:inline-block;border:6px solid #111;border-radius:16px;box-shadow:9px 9px 0 #000;padding:10px 24px;font-family:'Fredoka';font-size:38px;color:#111}
+.cap{font-family:'Pop';font-weight:700;text-transform:uppercase;-webkit-text-stroke:12px #000;paint-order:stroke fill;text-shadow:8px 8px 0 #000;line-height:1.08}
+"""
+
+
+def _story_head(brand, a2, right_text, right_bg="#fff"):
+    return (f"<div style='position:absolute;left:64px;right:64px;top:270px;display:flex;justify-content:space-between;align-items:center'>"
+            f"<div class='sticker' style='background:rgb({a2});transform:rotate(-3deg)'>{_h.escape(brand)}</div>"
+            f"<div class='sticker' style='background:{right_bg};transform:rotate(3deg);font-size:30px'>{_h.escape(right_text)}</div></div>")
+
+
+def story_tip_card(d, out, brand, pal=None):
+    """d: n, title, body"""
+    pal = pal or BRAND_PAL
+    a1, a2 = rgb(pal["a1"]), rgb(pal["a2"])
+    e = _h.escape
+    tsize = 104 if len(d["title"]) < 26 else 86
+    doc = f"""<html><head><meta charset='utf-8'><style>{FACES}{_face('Fredoka','FredokaOne-Regular.ttf',400)}{_face('Pop','Poppins-Bold.ttf',700)}{_face('PopM','Poppins-Medium.ttf',500)}
+{STORY_CSS.replace('A1', a1)}
+.wrap{{position:absolute;left:64px;right:64px;top:520px}}
+.title{{font-size:{tsize}px;text-align:center}}
+.card{{margin-top:64px;background:#fff;border:6px solid #111;border-radius:30px;box-shadow:14px 14px 0 #000;padding:44px 46px;color:#111;
+ font-family:'PopM';font-size:44px;line-height:1.3;transform:rotate(-1.2deg)}}
+.cta{{position:absolute;left:110px;right:110px;top:1450px;text-align:center;background:rgb({a2});font-size:40px;transform:rotate(-2deg)}}
+.foot{{position:absolute;left:64px;right:64px;top:1560px;text-align:center;font-family:'PopM';font-size:24px;color:rgba(255,255,255,.7)}}
+</style></head><body>{_candles_svg(1080, 1920, seed=21 + d['n'])}<div class='burst'></div>
+{_story_head(brand, a2, f"TIP #{d['n']}", f"rgb({a1})")}
+<div class='wrap'><div class='cap title'>{e(d['title'])}</div><div class='card'>{e(d['body'])}</div></div>
+<div class='sticker cta'>FOLLOW FOR DAILY RISK CHECKS</div>
+<div class='foot'>Not financial advice. DYOR.</div></body></html>"""
+    return to_png(doc, out, 1080, 1920)
+
+
+def story_radar_card(d, logo_path, pal, out, brand):
+    """d: symbol, chain, chain_key, verdict (label, 'r,g,b'), stats [(label,value)x3], ca, updated"""
+    import base64
+    a1, a2c = pal["a1"], (pal["a2"] if max(pal["a2"]) >= 200 else tuple(min(255, int(v * 0.35 + 255 * 0.65)) for v in pal["a1"]))
+    a1s, a2 = rgb(a1), rgb(a2c)
+    e = _h.escape
+    b64 = base64.b64encode(open(logo_path, "rb").read()).decode()
+    vlabel, vcol = d["verdict"]
+    vtext = "#fff" if vlabel == "HIGH RISK" else "#111"
+    tsize = 150 if len(d["symbol"]) <= 5 else max(80, int(150 * 5 / len(d["symbol"])))
+    stats = "".join(f"<div class='st' style='background:{['rgb('+a2+')', '#fff', 'rgb('+a1s+')'][i]}'><div class='sl'>{e(k)}</div><div class='sv'>{e(v)}</div></div>"
+                    for i, (k, v) in enumerate(d["stats"]))
+    doc = f"""<html><head><meta charset='utf-8'><style>{FACES}{_face('Fredoka','FredokaOne-Regular.ttf',400)}{_face('Pop','Poppins-Bold.ttf',700)}{_face('PopM','Poppins-Medium.ttf',500)}
+{STORY_CSS.replace('A1', a1s)}
+.glow{{position:absolute;left:240px;top:430px;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba({a1s},.55),transparent 68%)}}
+.logo{{position:absolute;left:350px;top:470px;width:380px;height:380px;border-radius:50%;border:12px solid #fff;box-shadow:16px 16px 0 rgb({a1s});
+ background:url(data:image/png;base64,{b64}) center/cover;transform:rotate(-5deg)}}
+.chainb{{position:absolute;left:610px;top:770px;background:#fff;transform:rotate(5deg);font-size:32px;padding:8px 22px 8px 12px;z-index:3}}
+.tick{{position:absolute;left:0;right:0;top:880px;text-align:center;font-size:{tsize}px}}
+.ver{{position:absolute;left:0;right:0;top:1090px;text-align:center}}
+.stats{{position:absolute;left:64px;right:64px;top:1190px;display:flex;gap:22px}}
+.st{{flex:1;border:6px solid #111;border-radius:22px;box-shadow:9px 9px 0 #000;padding:14px 18px;color:#111}}
+.sl{{font-family:'PopM';font-size:20px;letter-spacing:.05em;text-transform:uppercase}}
+.sv{{font-family:'Fredoka';font-size:46px;line-height:1.15;white-space:nowrap}}
+.sub{{position:absolute;left:64px;right:64px;top:1380px;text-align:center;font-family:'PopM';font-size:32px}}
+.ca{{position:absolute;left:0;right:0;top:1450px;text-align:center}}
+.ca span{{display:inline-block;background:#000;border:3px solid rgba(255,255,255,.55);border-radius:30px;padding:8px 24px;font-family:'PopM';font-size:25px}}
+.foot{{position:absolute;left:64px;right:64px;top:1535px;text-align:center;font-family:'PopM';font-size:22px;color:rgba(255,255,255,.72);line-height:1.35}}
+</style></head><body>{_candles_svg(1080, 1920, seed=5)}<div class='burst'></div><div class='glow'></div>
+{_story_head(brand, a2, "RADAR UPDATE")}
+<div class='logo'></div><div class='sticker chainb'>{_chain_img(d.get('chain_key', ''))}{e(d['chain'].upper())}</div>
+<div class='cap tick'>${e(d['symbol'])}</div>
+<div class='ver'><div class='sticker' style='background:rgb({vcol});color:{vtext};font-size:40px;transform:rotate(-2deg)'>{e(vlabel)}</div></div>
+<div class='stats'>{stats}</div>
+<div class='sub'>Most active token in today's scan (by 24h volume)</div>
+<div class='ca'><span>{e(d['chain'].upper())} &nbsp;|&nbsp; CA: {e(d['ca'])}</span></div>
+<div class='foot'>Scanned {e(d['updated'])}. This is not a recommendation.<br>Not financial advice. DYOR.</div></body></html>"""
+    return to_png(doc, out, 1080, 1920)
