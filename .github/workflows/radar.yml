@@ -2,16 +2,18 @@ name: radar
 on:
   schedule:
     - cron: "0 13 * * *"
+    - cron: "0 14 * * *"
     - cron: "0 15 * * *"
-    - cron: "0 19 * * *"
-    - cron: "0 0 * * *"
     - cron: "0 17 * * *"
+    - cron: "0 19 * * *"
+    - cron: "0 21 * * *"
+    - cron: "0 0 * * *"
     - cron: "0 16 * * 0"
     - cron: "30 21 * * 2,4"
   workflow_dispatch:
     inputs:
       job:
-        description: "brief | alert | scoreboard | education | instagram"
+        description: "alert | instagram | story_tip | story_radar | brief | scoreboard | education | diagnose"
         default: "alert"
 permissions:
   contents: write
@@ -21,15 +23,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       X_API_KEY: ${{ secrets.X_API_KEY }}
       X_API_SECRET: ${{ secrets.X_API_SECRET }}
       X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
       X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
       IG_USER_ID: ${{ secrets.IG_USER_ID }}
       IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       BRAND: ${{ vars.BRAND }}
       DISCLOSURE: ${{ vars.DISCLOSURE }}
+      IG_HOST: ${{ vars.IG_HOST }}
       DRY_RUN: ${{ vars.DRY_RUN || 'true' }}
     steps:
       - uses: actions/checkout@v4
@@ -46,12 +49,14 @@ jobs:
             "0 17 * * *") J=instagram;;
             "0 16 * * 0") J=scoreboard;;
             "30 21 * * 2,4") J=education;;
+            "0 14 * * *") J=story_tip;;
+            "0 21 * * *") J=story_radar;;
             *) J="${{ github.event.inputs.job }}";;
           esac
           save() { git config user.name radar-bot; git config user.email bot@users.noreply.github.com
                    git add -A state held public; git diff --cached --quiet || (git commit -m "radar: $J" && git push); }
-          if [ "$J" = instagram ]; then
-            python bot.py ig_prepare; save; sleep 45; python bot.py ig_publish; save
-          else
-            python bot.py "$J"; save
-          fi
+          case "$J" in
+            instagram) python bot.py ig_prepare; save; sleep 45; python bot.py ig_publish; save;;
+            story_tip|story_radar) python bot.py "${J}_prepare"; save; sleep 45; python bot.py story_publish; save;;
+            *) python bot.py "$J"; save;;
+          esac
