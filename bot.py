@@ -251,6 +251,10 @@ ALERT_RULES = ("ALERT FORMAT: put exactly 2 posts in the text array. Post 1 (max
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta"
 
 
+class GeminiQuota(RuntimeError):
+    pass
+
+
 def _gemini_call(model, system, user):
     """One model, retrying temporary errors (503/429/5xx) with waits."""
     last = None
@@ -262,9 +266,11 @@ def _gemini_call(model, system, user):
                           json={"systemInstruction": {"parts": [{"text": system}]},
                                 "contents": [{"role": "user", "parts": [{"text": user}]}],
                                 "generationConfig": {"temperature": 0.8, "responseMimeType": "application/json"}}, timeout=120)
-        if r.status_code in (429, 500, 502, 503, 504):
+        if r.status_code == 429:
+            raise GeminiQuota(f"429 (quota or rate limit) for {model}")
+        if r.status_code in (500, 502, 503, 504):
             last = RuntimeError(f"{r.status_code} for {model}")
-            print(f"Gemini {model}: temporary error {r.status_code}, retrying")
+            print(f"Gemini {model}: busy ({r.status_code}), retrying")
             continue
         r.raise_for_status()
         return r.json()["candidates"][0]["content"]["parts"][0]["text"]
@@ -288,15 +294,21 @@ def _gemini_discover():
 
 def gemini_text(system, user):
     """Free writer. Tries GEMINI_MODEL / gemini-4-hydrogen, then whatever models Google lists for this key."""
-    tried, last = [], None
+    tried, last, quota_hits = [], None, 0
     for model in [m for m in [os.getenv("GEMINI_MODEL"), "gemini-4-hydrogen"] if m] + [None]:
-        models = [model] if model else [m for m in _gemini_discover() if m not in tried][:3]
+        models = [model] if model else [m for m in _gemini_discover() if m not in tried][:2]
         for m in models:
             tried.append(m)
             try:
                 out = _gemini_call(m, system, user)
                 print("Gemini model used:", m)
                 return out
+            except GeminiQuota as e:
+                quota_hits += 1
+                last = e
+                print(f"Gemini model {m}: {e}")
+                if quota_hits >= 2:
+                    raise GeminiQuota("free quota looks exhausted for today") from e
             except Exception as e:
                 print(f"Gemini model {m} failed: {e}")
                 last = e
@@ -312,13 +324,17 @@ def generate(job, data, fmt, platform):
             f"If a token is named, end with '{FOOTER}'. For alerts also return image_caption (max 5 words, meme-caption style, no numbers) "
             f"and image_sub (max 10 words, no numbers). Keep text under 170 characters. Do NOT write the contract address; it is appended automatically.\nDATA:\n{json.dumps(data, ensure_ascii=False)}\n"
             f"{ALERT_RULES if job == 'alert' else ''}Return only the JSON object.")
-    if os.getenv("ANTHROPIC_API_KEY"):
-        from anthropic import Anthropic
-        msg = Anthropic().messages.create(model=MODEL, max_tokens=1800, system=system,
-                                          messages=[{"role": "user", "content": user}])
-        raw = msg.content[0].text
-    else:
-        raw = gemini_text(system, user)
+    try:
+        if os.getenv("ANTHROPIC_API_KEY"):
+            from anthropic import Anthropic
+            msg = Anthropic().messages.create(model=MODEL, max_tokens=1800, system=system,
+                                              messages=[{"role": "user", "content": user}])
+            raw = msg.content[0].text
+        else:
+            raw = gemini_text(system, user)
+    except Exception as e:
+        print(f"AI unavailable ({e}); using template text so today's post is not lost")
+        return mock_generate(job, data, fmt, platform)
     return json.loads(re.search(r"\{.*\}", raw, re.S).group(0))
 
 
@@ -579,6 +595,39 @@ def ig_publish_story(image_url):
     return _ig_try_hosts(lambda h, u, t: _ig_story_on(h, u, t, image_url))
 
 
+# ---------- Telegram (free Bot API: channel posts) ----------
+def tg_enabled():
+    return bool(os.getenv("TELEGRAM_BOT_TOKEN", "").strip() and os.getenv("TELEGRAM_CHAT_ID", "").strip())
+
+
+def tg_send(text, photo_path=None):
+    """Post to the Telegram channel. With a photo, the text is the caption (max 1024 chars; extra goes in a second message)."""
+    tok, chat = os.environ["TELEGRAM_BOT_TOKEN"].strip(), os.environ["TELEGRAM_CHAT_ID"].strip()
+    base = f"https://api.telegram.org/bot{tok}"
+    rest = ""
+    if photo_path:
+        cap, rest = (text[:1024], text[1024:]) if len(text) > 1024 else (text, "")
+        with open(photo_path, "rb") as f:
+            r = requests.post(f"{base}/sendPhoto", data={"chat_id": chat, "caption": cap}, files={"photo": f}, timeout=60)
+    else:
+        r = requests.post(f"{base}/sendMessage", data={"chat_id": chat, "text": text[:4096]}, timeout=30)
+    if not r.ok:
+        raise RuntimeError(f"Telegram error {r.status_code}: {r.text[:300].replace(tok, '***')}")
+    if rest.strip():
+        requests.post(f"{base}/sendMessage", data={"chat_id": chat, "text": rest[:4096]}, timeout=30)
+
+
+def tg_post_safe(text, photo_path=None):
+    """Never let a Telegram problem break the X/Instagram jobs."""
+    if DRY_RUN or not tg_enabled():
+        return
+    try:
+        tg_send(text, photo_path)
+        print("Telegram: posted")
+    except Exception as e:
+        print("Telegram failed (ignored):", e)
+
+
 # ---------- jobs ----------
 def job_alert():
     data = pick_alert_data()
@@ -589,7 +638,14 @@ def job_alert():
     save("seen", seen[-500:])
     out = with_contract(generate("alert", data, "thread", "x"), data)
     prefix = re.sub(r"\W", "", f"x_{dt.date.today():%Y%m%d}_{data['token']['symbol'][:8]}")
-    if deliver_x("alert", out, data, lambda o: render_alert_card(data, o, prefix)):
+    card = {}
+
+    def make_card(o):
+        card["p"] = render_alert_card(data, o, prefix)
+        return card["p"]
+
+    if deliver_x("alert", out, data, make_card):
+        tg_post_safe("\n\n".join(out["text"]), card.get("p"))
         h = load("history", [])
         t = data["token"]
         h.append({"symbol": t["symbol"], "address": t["address"], "chain": t["chain"], "price": data["price"],
@@ -850,11 +906,18 @@ def job_story_publish():
     else:
         ig_publish_story(base + nxt["file"])
         print("story published")
+        tg_post_safe("Daily update from the radar. Not financial advice. DYOR.", str(PUBLIC / nxt["file"]))
     (STATE / "ig_story_next.json").unlink(missing_ok=True)
 
 
 JOBS = {"diagnose": job_diagnose, "story_tip_prepare": job_story_tip_prepare, "story_radar_prepare": job_story_radar_prepare, "story_publish": job_story_publish, "alert": job_alert, "brief": job_brief, "scoreboard": job_scoreboard, "education": job_education,
         "ig_prepare": job_ig_prepare, "ig_publish": job_ig_publish}
 
+X_JOBS = {"alert", "brief", "scoreboard", "education"}
+
 if __name__ == "__main__":
-    JOBS[sys.argv[1]]()
+    job = sys.argv[1]
+    if job in X_JOBS and not (os.getenv("X_API_KEY") or tg_enabled()):
+        print(f"Job '{job}' skipped: X (and Telegram) are not connected yet. This saves AI quota and Actions minutes.")
+    else:
+        JOBS[job]()
