@@ -430,3 +430,57 @@ def story_radar_card(d, logo_path, pal, out, brand):
 <div class='ca'><span>{e(d['chain'].upper())} &nbsp;|&nbsp; CA: {e(d['ca'])}</span></div>
 <div class='foot'>Scanned {e(d['updated'])}. This is not a recommendation.<br>Not financial advice. DYOR.</div></body></html>"""
     return to_png(doc, out, 1080, 1920)
+
+
+def story_promo_card(kind, d, out, brand, pal=None):
+    """Brand / hype stories that never reveal the token of the day. kinds: drop | counter | whatwedo | teaser | quiz"""
+    pal = pal or BRAND_PAL
+    a1, a2 = rgb(pal["a1"]), rgb(pal["a2"])
+    e = _h.escape
+    card = lambda t, rot=-1.2: (f"<div class='card' style='transform:rotate({rot}deg)'>{e(t)}</div>")
+    if kind == "drop":
+        title = "TODAY'S RISK CHECK IS LIVE"
+        body = (f"<div class='sticker big' style='background:rgb({a1});transform:rotate(-2deg)'>GO SEE IT ON THE FEED</div>"
+                + card("Full breakdown on our latest post: the verdict, the numbers, the flags and the contract."))
+    elif kind == "counter":
+        title = "THE RADAR IN NUMBERS"
+        body = (f"<div class='tile' style='background:rgb({a2});transform:rotate(-2deg)'><div class='n'>{d['scanned']}</div><div class='l'>TOKENS SCANNED</div></div>"
+                f"<div class='tile' style='background:#fff;transform:rotate(1.6deg)'><div class='n'>{d['checks']}</div><div class='l'>RISK CHECKS PUBLISHED</div></div>"
+                + card("Every check shows the contract address. No buy calls, ever."))
+    elif kind == "whatwedo":
+        title = "WHAT WE DO"
+        body = "".join(card(t, rot) for t, rot in (("We scan new memecoins every day.", -1.4),
+                                                   ("We check liquidity, contract flags and copycats.", 1.2),
+                                                   ("We never say buy. Just receipts.", -1.0)))
+    elif kind == "teaser":
+        title = "NEXT RISK CHECK DROPS TOMORROW"
+        body = (f"<div class='tile' style='background:rgb({a1});transform:rotate(-2deg)'><div class='n' style='font-size:130px'>~17:00 UTC</div></div>"
+                + card("One token. The full breakdown. Contract included.")
+                + card("Follow and turn on post notifications so you do not miss it.", 1.2))
+    else:  # quiz
+        title = "COOKED OR NOT?"
+        chips = "".join(f"<div class='chip'><span>{e(k)}</span> {e(v)}</div>" for k, v in
+                        (("LIQUIDITY", "SMALL"), ("VOLUME", "HUGE"), ("AGE", "3 HOURS")))
+        body = (f"<div class='sticker' style='background:#fff;font-size:30px;transform:rotate(-1.5deg)'>EXAMPLE SETUP, NOT A REAL TOKEN</div>{chips}"
+                f"<div class='btns'><div class='btn' style='background:#ff4d5e'>COOKED</div><div class='btn' style='background:#18e08a'>NOT COOKED</div></div>"
+                + card("Reply with your pick. We explain it in the next check.", 1.0))
+    tsize = 100 if len(title) < 24 else 82
+    doc = f"""<html><head><meta charset='utf-8'><style>{FACES}{_face('Fredoka','FredokaOne-Regular.ttf',400)}{_face('Pop','Poppins-Bold.ttf',700)}{_face('PopM','Poppins-Medium.ttf',500)}
+{STORY_CSS.replace('A1', a1)}
+.wrap{{position:absolute;left:64px;right:64px;top:430px;display:flex;flex-direction:column;gap:26px}}
+.title{{font-size:{tsize}px;text-align:center;margin-bottom:6px}}
+.card{{background:#fff;border:6px solid #111;border-radius:28px;box-shadow:12px 12px 0 #000;padding:24px 34px;color:#111;font-family:'PopM';font-size:38px;line-height:1.28}}
+.big{{font-size:44px;text-align:center;padding:18px 26px}}
+.tile{{border:6px solid #111;border-radius:30px;box-shadow:12px 12px 0 #000;padding:16px 26px;color:#111;text-align:center}}
+.n{{font-family:'Fredoka';font-size:118px;line-height:1.05}} .l{{font-family:'Pop';font-weight:700;font-size:30px;margin-top:2px}}
+.chip{{background:rgb({a2});border:5px solid #111;border-radius:20px;box-shadow:8px 8px 0 #000;padding:12px 26px;color:#111;font-family:'Pop';font-weight:700;font-size:34px}}
+.chip span{{font-family:'PopM';font-weight:500;margin-right:14px}}
+.btns{{display:flex;gap:26px}} .btn{{flex:1;text-align:center;border:6px solid #111;border-radius:24px;box-shadow:9px 9px 0 #000;padding:18px 10px;color:#111;font-family:'Fredoka';font-size:44px}}
+.cta{{position:absolute;left:110px;right:110px;top:1495px;text-align:center;background:rgb({a2});font-size:36px;transform:rotate(-2deg)}}
+.foot{{position:absolute;left:64px;right:64px;top:1590px;text-align:center;font-family:'PopM';font-size:22px;color:rgba(255,255,255,.7)}}
+</style></head><body>{_candles_svg(1080, 1920, seed=33)}<div class='burst'></div>
+{_story_head(brand, a2, "RADAR", f"rgb({a1})")}
+<div class='wrap'><div class='cap title'>{e(title)}</div>{body}</div>
+<div class='sticker cta'>FOLLOW {e(brand)}</div>
+<div class='foot'>Not financial advice. DYOR.</div></body></html>"""
+    return to_png(doc, out, 1080, 1920)

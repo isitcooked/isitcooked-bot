@@ -749,7 +749,7 @@ def job_ig_prepare():
     prefix = re.sub(r"\W", "", f"ig_{dt.date.today():%Y%m%d}_{data['token']['symbol'][:8]}")
     files = render_ig_slides(data, out, prefix)
     caption = build_ig_caption(out, data)
-    save("ig_next", {"files": [f.name for f in files], "caption": caption})
+    save("ig_next", {"files": [f.name for f in files], "caption": caption, "verdict": verdict(data)[0]})
     print("prepared", [f.name for f in files])
 
 
@@ -765,6 +765,7 @@ def job_ig_publish():
         save_outbox("instagram", [nxt["caption"]], [str(PUBLIC / f) for f in nxt["files"]])
     else:
         ig_publish(urls, nxt["caption"])
+        update_stats(nxt.get("verdict"))
     (STATE / "ig_next.json").unlink(missing_ok=True)
 
 
@@ -894,6 +895,36 @@ def job_story_radar_prepare():
     print("prepared radar story:", t["symbol"])
 
 
+def update_stats(verdict_label=None):
+    st = load("stats", {"checks": 0, "last_post": ""})
+    st["checks"] = st.get("checks", 0) + 1
+    st["last_post"] = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
+    if verdict_label:
+        st[verdict_label] = st.get(verdict_label, 0) + 1
+    save("stats", st)
+
+
+PROMO_ORDER = ["drop", "counter", "whatwedo", "teaser", "quiz"]
+
+
+def job_story_promo_prepare():
+    """Brand/hype story. Never shows the token of the day: that stays exclusive to the carousel."""
+    _cleanup_old_images()
+    st = load("stats", {"checks": 0, "last_post": ""})
+    today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
+    ok = {"drop": st.get("last_post") == today, "counter": st.get("checks", 0) >= 3,
+          "whatwedo": True, "teaser": True, "quiz": True}
+    day = dt.date.today().toordinal()
+    kind = PROMO_ORDER[day % len(PROMO_ORDER)]
+    if not ok[kind]:  # not eligible yet (e.g. no post today / too few checks): use a static one, rotating
+        kind = ["whatwedo", "teaser", "quiz"][day % 3]
+    out = PUBLIC / f"story_promo_{dt.date.today():%Y%m%d}.png"
+    render_html.story_promo_card(kind, {"scanned": len(load("seen", [])), "checks": st.get("checks", 0)}, out, BRAND.upper())
+    jpg = _to_story_jpg(out)
+    save("ig_story_next", {"file": jpg.name})
+    print("prepared promo story:", kind)
+
+
 def job_story_publish():
     nxt = load("ig_story_next", None)
     if not nxt or "file" not in nxt:
@@ -910,7 +941,7 @@ def job_story_publish():
     (STATE / "ig_story_next.json").unlink(missing_ok=True)
 
 
-JOBS = {"diagnose": job_diagnose, "story_tip_prepare": job_story_tip_prepare, "story_radar_prepare": job_story_radar_prepare, "story_publish": job_story_publish, "alert": job_alert, "brief": job_brief, "scoreboard": job_scoreboard, "education": job_education,
+JOBS = {"diagnose": job_diagnose, "story_tip_prepare": job_story_tip_prepare, "story_radar_prepare": job_story_promo_prepare, "story_token_prepare": job_story_radar_prepare, "story_publish": job_story_publish, "alert": job_alert, "brief": job_brief, "scoreboard": job_scoreboard, "education": job_education,
         "ig_prepare": job_ig_prepare, "ig_publish": job_ig_publish}
 
 X_JOBS = {"alert", "brief", "scoreboard", "education"}
