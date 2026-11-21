@@ -43,6 +43,16 @@ class RadarTests(unittest.TestCase):
         self.assertIn("Not financial advice", text)
         self.assertIn("A"*32, text)
 
+    def test_outcomes_are_recorded_without_cherry_picking(self):
+        record = {"symbol":"TEST", "chain":"solana", "address":"A"*32,
+                  "initial_price":1.0, "published_at":1_000, "checkpoints":{}}
+        pair = {"priceUsd":"1.25", "liquidity":{"usd":50000}}
+        with tempfile.TemporaryDirectory() as directory, patch.object(bot,"STATE",Path(directory)), \
+             patch.object(bot,"best_pair",return_value=pair), patch.object(bot.time,"time",return_value=1_000+25*3600):
+            bot.save("history",[record]); updated=bot.refresh_history()
+            self.assertEqual(updated[0]["checkpoints"]["1h"]["change_pct"],25.0)
+            self.assertEqual(updated[0]["checkpoints"]["24h"]["change_pct"],25.0)
+
 
 if __name__ == "__main__":
     unittest.main()
