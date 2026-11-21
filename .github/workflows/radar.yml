@@ -5,13 +5,14 @@ on:
     # UTC. Canary Islands: same time in winter, +1 hour locally in summer.
     - cron: "0 13 * * *"   # educational story
     - cron: "0 17 * * *"   # daily high-quality carousel
+    - cron: "0 18 * * 0"   # weekly transparent results carousel
     - cron: "0 21 * * *"   # promising-token story
   workflow_dispatch:
     inputs:
       job:
         description: "Choose a safe Instagram job"
         type: choice
-        options: [instagram, story_tip, story_radar, diagnose]
+        options: [instagram, scoreboard, story_tip, story_radar, diagnose]
         default: diagnose
 
 permissions:
@@ -75,6 +76,7 @@ jobs:
           case "${{ github.event.schedule }}" in
             "0 13 * * *") job=story_tip ;;
             "0 17 * * *") job=instagram ;;
+            "0 18 * * 0") job=scoreboard ;;
             "0 21 * * *") job=story_radar ;;
             *) job="${{ inputs.job || 'diagnose' }}" ;;
           esac
@@ -108,7 +110,7 @@ jobs:
           cd "$tmp"
           git checkout --orphan media
           git rm -rf .
-          if [[ "${{ steps.select.outputs.job }}" == "instagram" ]]; then
+          if [[ "${{ steps.select.outputs.job }}" == "instagram" || "${{ steps.select.outputs.job }}" == "scoreboard" ]]; then
             while IFS= read -r file; do cp "$GITHUB_WORKSPACE/public/$file" .; done < <(
               python -c 'import json,os; print(*json.load(open(os.environ["GITHUB_WORKSPACE"]+"/state/ig_next.json"))["files"], sep="\n")'
             )
@@ -126,7 +128,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ steps.select.outputs.job }}" == "instagram" ]]; then
+          if [[ "${{ steps.select.outputs.job }}" == "instagram" || "${{ steps.select.outputs.job }}" == "scoreboard" ]]; then
             python bot.py instagram_publish
           else
             python bot.py story_publish

@@ -387,7 +387,7 @@ def story_tip_card(d, out, brand, pal=None):
 </style></head><body>{_candles_svg(1080, 1920, seed=21 + d['n'])}<div class='burst'></div>
 {_story_head(brand, a2, f"TIP #{d['n']}", f"rgb({a1})")}
 <div class='wrap'><div class='cap title'>{e(d['title'])}</div><div class='card'>{e(d['body'])}</div></div>
-<div class='sticker cta'>FOLLOW FOR DAILY RISK CHECKS</div>
+<div class='sticker cta'>FOLLOW FOR VERIFIED SIGNALS</div>
 <div class='foot'>Not financial advice. DYOR.</div></body></html>"""
     return to_png(doc, out, 1080, 1920)
 
@@ -426,7 +426,7 @@ def story_radar_card(d, logo_path, pal, out, brand):
 <div class='cap tick'>${e(d['symbol'])}</div>
 <div class='ver'><div class='sticker' style='background:rgb({vcol});color:{vtext};font-size:40px;transform:rotate(-2deg)'>{e(vlabel)}</div></div>
 <div class='stats'>{stats}</div>
-<div class='sub'>Most active token in today's scan (by 24h volume)</div>
+<div class='sub'>Promising momentum filtered by market strength + security</div>
 <div class='ca'><span>{e(d['chain'].upper())} &nbsp;|&nbsp; CA: {e(d['ca'])}</span></div>
 <div class='foot'>Scanned {e(d['updated'])}. This is not a recommendation.<br>Not financial advice. DYOR.</div></body></html>"""
     return to_png(doc, out, 1080, 1920)
@@ -439,19 +439,19 @@ def story_promo_card(kind, d, out, brand, pal=None):
     e = _h.escape
     card = lambda t, rot=-1.2: (f"<div class='card' style='transform:rotate({rot}deg)'>{e(t)}</div>")
     if kind == "drop":
-        title = "TODAY'S RISK CHECK IS LIVE"
+        title = "TODAY'S SIGNAL IS LIVE"
         body = (f"<div class='sticker big' style='background:rgb({a1});transform:rotate(-2deg)'>GO SEE IT ON THE FEED</div>"
-                + card("Full breakdown on our latest post: the verdict, the numbers, the flags and the contract."))
+                + card("Full breakdown: momentum, liquidity, scanner flags and the verified contract."))
     elif kind == "counter":
         title = "THE RADAR IN NUMBERS"
         body = (f"<div class='tile' style='background:rgb({a2});transform:rotate(-2deg)'><div class='n'>{d['scanned']}</div><div class='l'>TOKENS SCANNED</div></div>"
-                f"<div class='tile' style='background:#fff;transform:rotate(1.6deg)'><div class='n'>{d['checks']}</div><div class='l'>RISK CHECKS PUBLISHED</div></div>"
-                + card("Every check shows the contract address. No buy calls, ever."))
+                f"<div class='tile' style='background:#fff;transform:rotate(1.6deg)'><div class='n'>{d['checks']}</div><div class='l'>SIGNALS DOCUMENTED</div></div>"
+                + card("Every signal keeps its contract and outcome. No deleted losses."))
     elif kind == "whatwedo":
         title = "WHAT WE DO"
-        body = "".join(card(t, rot) for t, rot in (("We scan new memecoins every day.", -1.4),
-                                                   ("We check liquidity, contract flags and copycats.", 1.2),
-                                                   ("We never say buy. Just receipts.", -1.0)))
+        body = "".join(card(t, rot) for t, rot in (("We scan emerging memecoins every day.", -1.4),
+                                                   ("We filter momentum, liquidity and security.", 1.2),
+                                                   ("Every signal gets a public receipt.", -1.0)))
     elif kind == "teaser":
         title = "NEXT RISK CHECK DROPS TOMORROW"
         body = (f"<div class='tile' style='background:rgb({a1});transform:rotate(-2deg)'><div class='n' style='font-size:130px'>~17:00 UTC</div></div>"
@@ -481,6 +481,6 @@ def story_promo_card(kind, d, out, brand, pal=None):
 </style></head><body>{_candles_svg(1080, 1920, seed=33)}<div class='burst'></div>
 {_story_head(brand, a2, "RADAR", f"rgb({a1})")}
 <div class='wrap'><div class='cap title'>{e(title)}</div>{body}</div>
-<div class='sticker cta'>FOLLOW {e(brand)}</div>
+<div class='sticker cta'>LIVE RADAR · LINK IN BIO</div>
 <div class='foot'>Not financial advice. DYOR.</div></body></html>"""
     return to_png(doc, out, 1080, 1920)

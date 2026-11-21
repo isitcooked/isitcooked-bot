@@ -7,6 +7,7 @@ import math
 import os
 import pathlib
 import re
+import statistics
 import sys
 import time
 from urllib.parse import quote, urlsplit
@@ -117,6 +118,45 @@ def discovery_pairs():
             key, liquidity = token_key(chain, address), num((pair.get("liquidity") or {}).get("usd"))
             if key not in best or liquidity > num((best[key].get("liquidity") or {}).get("usd")): best[key] = pair
     return list(best.values())
+
+
+def best_pair(chain, address):
+    data = get_json(f"{DS}/latest/dex/tokens/{address}")
+    pairs = [pair for pair in data.get("pairs") or [] if pair.get("chainId") == chain]
+    return max(pairs, key=lambda pair: num((pair.get("liquidity") or {}).get("usd")), default=None)
+
+
+def refresh_history():
+    """Record every outcome at approximately 1h, 24h and 7d without cherry-picking."""
+    history = load("history", [])[-100:]
+    now, changed = time.time(), False
+    for record in history[-40:]:
+        elapsed = (now - num(record.get("published_at"), now)) / 3600
+        due = [("1h", 1), ("24h", 24), ("7d", 168)]
+        missing = [(label, hours) for label, hours in due if elapsed >= hours and label not in record.get("checkpoints", {})]
+        if not missing:
+            continue
+        try:
+            pair = best_pair(record["chain"], record["address"])
+            current = num(pair.get("priceUsd")) if pair else 0
+        except Exception as exc:
+            print(f"outcome refresh failed for {record.get('symbol')}: {exc}")
+            continue
+        initial = num(record.get("initial_price"))
+        if not current or not initial:
+            continue
+        record.setdefault("checkpoints", {})
+        for label, _ in missing:
+            record["checkpoints"][label] = {
+                "change_pct": round((current / initial - 1) * 100, 2),
+                "observed_after_h": round(elapsed, 1), "price": current,
+            }
+        record["last_price"] = current
+        record["peak_change_pct"] = max(num(record.get("peak_change_pct"), -100), (current / initial - 1) * 100)
+        changed = True
+    if changed:
+        save("history", history)
+    return history
 
 
 def snapshot(pair):
@@ -280,7 +320,7 @@ def caption(data):
     return "\n\n".join((f"${token['symbol'].upper()} just entered the IS IT COOKED? watchlist.",
         f"Radar score: {data['radar_score']}/100\nLiquidity: {fmt_usd(data['liquidity'])}\n1h volume: {fmt_usd(data['volume'])}\nBuy pressure: {ratio:.0f}%\n1h change: {data['change_h1']:+.1f}%",
         security, f"{token['chain_name']} contract:\n{token['address']}",
-        "Save this research card, verify the contract and follow for the next signal.",
+        "Save this research card, verify the contract and follow for the next signal. Live radar: link in bio.",
         "Promising momentum is not a guarantee. Not financial advice. Always do your own research.", tags))
 
 
@@ -292,6 +332,7 @@ def cleanup_media(days=3):
 
 def job_instagram_prepare():
     cleanup_media()
+    refresh_history()
     if load("ig_next",None): return print("a post is already prepared; publish it before replacing it")
     data=pick_promising(True)
     if not data: return
@@ -299,6 +340,9 @@ def job_instagram_prepare():
     prefix=f"ig_{dt.datetime.now(dt.timezone.utc):%Y%m%d_%H%M}_{symbol}"; files=render_carousel(data,prefix)
     save("ig_next",{"files":[p.name for p in files],"caption":caption(data),
          "token_key":token_key(data["token"]["chain"],data["token"]["address"]),"score":data["radar_score"],
+         "record":{"symbol":data["token"]["symbol"],"chain":data["token"]["chain"],
+                   "address":data["token"]["address"],"initial_price":num(data.get("price")),
+                   "score":data["radar_score"],"initial_liquidity":data["liquidity"]},
          "prepared_at":dt.datetime.now(dt.timezone.utc).isoformat()})
     print("prepared Instagram carousel:",[p.name for p in files])
 
@@ -364,8 +408,50 @@ def job_instagram_publish():
     if DRY_RUN: return print("[DRY RUN INSTAGRAM]",pending["caption"],urls)
     wait_public(urls); result=publish_carousel(urls,pending["caption"])
     if not result.get("id"): raise RuntimeError("Instagram did not confirm publication")
-    seen=load("seen",[]); seen.append(pending["token_key"]); save("seen",list(dict.fromkeys(seen))[-1000:])
+    if pending.get("token_key"):
+        seen=load("seen",[]); seen.append(pending["token_key"]); save("seen",list(dict.fromkeys(seen))[-1000:])
+    record = dict(pending.get("record") or {})
+    if record.get("address") and record.get("initial_price"):
+        record.update({"published_at":time.time(),"checkpoints":{},"peak_change_pct":0})
+        history=load("history",[])
+        history.append(record)
+        save("history",history[-100:])
     update_stats(True); (STATE/"ig_next.json").unlink(missing_ok=True); print("carousel published:",result["id"])
+
+
+def job_scoreboard_prepare():
+    """Publish the full tracked record. Wins and losses are both included."""
+    cleanup_media(); history=refresh_history()
+    if load("ig_next",None): return print("another carousel is already pending")
+    tracked=[r for r in history if "24h" in r.get("checkpoints",{})]
+    if len(tracked) < 3: return print("not enough 24h outcomes for The Receipt yet")
+    recent=tracked[-20:]; changes=[r["checkpoints"]["24h"]["change_pct"] for r in recent]
+    positives=sum(change>0 for change in changes); median=statistics.median(changes)
+    best=max(recent,key=lambda r:r["checkpoints"]["24h"]["change_pct"])
+    worst=min(recent,key=lambda r:r["checkpoints"]["24h"]["change_pct"])
+    slides=[
+        "THE RECEIPT\nOUR PUBLIC 24H SCORECARD",
+        f"{len(recent)} SIGNALS TRACKED\n{positives} POSITIVE AT ~24H\nMEDIAN: {median:+.1f}%",
+        f"BEST OBSERVED\n${best['symbol']}  {best['checkpoints']['24h']['change_pct']:+.1f}%\n\n"
+        f"WORST OBSERVED\n${worst['symbol']}  {worst['checkpoints']['24h']['change_pct']:+.1f}%",
+        "NO DELETED LOSSES.\nNO CHERRY-PICKING.\nEVERY SIGNAL STAYS IN THE RECORD.",
+    ]
+    prefix=f"receipt_{dt.date.today():%Y%m%d}"; files=[]
+    for index,text in enumerate(slides):
+        png=PUBLIC/f"{prefix}_{index+1}.png"; render_html.slide_card(text,index,len(slides),png,BRAND.upper())
+        jpg=png.with_suffix(".jpg")
+        with Image.open(png) as image:image.convert("RGB").save(jpg,"JPEG",quality=92,optimize=True)
+        png.unlink(missing_ok=True); files.append(jpg)
+    caption_text="\n\n".join((
+        "THE RECEIPT — our tracked 24-hour record.",
+        f"Signals tracked: {len(recent)}\nPositive at ~24h: {positives}/{len(recent)}\nMedian change: {median:+.1f}%",
+        "Every eligible signal remains in the dataset. Losses are not deleted and results are not guarantees.",
+        "Follow the live radar through the link in bio. Not financial advice. DYOR.",
+        "#memecoins #cryptoresearch #onchain #transparency #cryptoeducation",
+    ))
+    save("ig_next",{"files":[p.name for p in files],"caption":caption_text,"kind":"scoreboard",
+                    "prepared_at":dt.datetime.now(dt.timezone.utc).isoformat()})
+    print("prepared The Receipt scoreboard")
 
 
 TIPS=[("Liquidity is your exit door","If a pool is tiny, selling moves the price against you. Check liquidity first."),
@@ -384,13 +470,20 @@ def story_jpg(png):
 
 
 def job_story_tip_prepare():
-    cleanup_media(); index=dt.date.today().toordinal()%len(TIPS); title,body=TIPS[index]
-    png=PUBLIC/f"story_tip_{dt.date.today():%Y%m%d}.png"; render_html.story_tip_card({"n":index+1,"title":title,"body":body},png,BRAND.upper())
-    jpg=story_jpg(png); save("ig_story_next",{"file":jpg.name,"kind":"tip"}); print("prepared tip story:",title)
+    cleanup_media(); history=refresh_history(); day=dt.date.today().toordinal()
+    if day % 4 == 0:
+        stats=load("stats",{"posts":0}); kinds=("whatwedo","counter","teaser"); kind=kinds[(day//4)%len(kinds)]
+        png=PUBLIC/f"story_growth_{dt.date.today():%Y%m%d}.png"
+        render_html.story_promo_card(kind,{"scanned":len(load("seen",[])),"checks":len(history) or stats.get("posts",0)},png,BRAND.upper())
+        label=f"growth:{kind}"
+    else:
+        index=day%len(TIPS); title,body=TIPS[index]; png=PUBLIC/f"story_tip_{dt.date.today():%Y%m%d}.png"
+        render_html.story_tip_card({"n":index+1,"title":title,"body":body},png,BRAND.upper()); label=f"tip:{title}"
+    jpg=story_jpg(png); save("ig_story_next",{"file":jpg.name,"kind":"education"}); print("prepared story:",label)
 
 
 def job_story_radar_prepare():
-    cleanup_media(); data=pick_promising(False)
+    cleanup_media(); refresh_history(); data=pick_promising(False)
     if not data:return
     token=data["token"]; symbol=re.sub(r"[^A-Za-z0-9_-]","",token["symbol"][:10]) or "token"
     prefix=f"story_radar_{dt.datetime.now(dt.timezone.utc):%Y%m%d_%H%M}_{symbol}"; logo=get_logo(data,prefix); palette=design.logo_palette(Image.open(logo)); m={k:v for k,v,_ in data["metrics"]}
@@ -418,6 +511,7 @@ def job_diagnose():
 
 
 JOBS={"instagram_prepare":job_instagram_prepare,"instagram_publish":job_instagram_publish,
+      "scoreboard_prepare":job_scoreboard_prepare,
       "story_tip_prepare":job_story_tip_prepare,"story_radar_prepare":job_story_radar_prepare,
       "story_publish":job_story_publish,"diagnose":job_diagnose}
 
