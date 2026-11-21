@@ -1,62 +1,149 @@
-name: radar
+name: Instagram Intelligence Radar
+
 on:
   schedule:
-    - cron: "0 13 * * *"
-    - cron: "0 14 * * *"
-    - cron: "0 15 * * *"
-    - cron: "0 17 * * *"
-    - cron: "0 19 * * *"
-    - cron: "0 21 * * *"
-    - cron: "0 0 * * *"
-    - cron: "0 16 * * 0"
-    - cron: "30 21 * * 2,4"
+    # UTC. Canary Islands: same time in winter, +1 hour locally in summer.
+    - cron: "0 13 * * *"   # educational story
+    - cron: "0 17 * * *"   # daily high-quality carousel
+    - cron: "0 21 * * *"   # promising-token story
   workflow_dispatch:
     inputs:
       job:
-        description: "alert | instagram | story_tip | story_radar | brief | scoreboard | education | diagnose"
-        default: "alert"
+        description: "Choose a safe Instagram job"
+        type: choice
+        options: [instagram, story_tip, story_radar, diagnose]
+        default: diagnose
+
 permissions:
   contents: write
-concurrency: radar
+
+concurrency:
+  group: instagram-radar-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  run:
+  instagram:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      X_API_KEY: ${{ secrets.X_API_KEY }}
-      X_API_SECRET: ${{ secrets.X_API_SECRET }}
-      X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
-      X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
       IG_USER_ID: ${{ secrets.IG_USER_ID }}
       IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
-      BRAND: ${{ vars.BRAND }}
-      DISCLOSURE: ${{ vars.DISCLOSURE }}
-      IG_HOST: ${{ vars.IG_HOST }}
-      DRY_RUN: ${{ vars.DRY_RUN || 'true' }}
+      IG_HOST: ${{ vars.IG_HOST || 'https://graph.facebook.com' }}
+      BRAND: ${{ vars.BRAND || 'Is It Cooked' }}
+      DRY_RUN: ${{ vars.DRY_RUN || 'false' }}
+      CHAINS: ${{ vars.CHAINS || 'solana,base' }}
+      MIN_LIQUIDITY: ${{ vars.MIN_LIQUIDITY || '20000' }}
+      MIN_VOLUME_1H: ${{ vars.MIN_VOLUME_1H || '25000' }}
+      MIN_TXNS_1H: ${{ vars.MIN_TXNS_1H || '35' }}
+      MIN_SCORE: ${{ vars.MIN_SCORE || '70' }}
+      MAX_AGE_HOURS: ${{ vars.MAX_AGE_HOURS || '72' }}
+      REQUIRE_OFFICIAL_LINK: ${{ vars.REQUIRE_OFFICIAL_LINK || 'true' }}
+      MEDIA_BRANCH: media
+      MEDIA_VERSION: ${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out the default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt && playwright install --with-deps chromium
-      - name: run job
+
+      - name: Install verified dependencies
         run: |
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Configure Git
+        run: |
+          git config user.name 'instagram-radar[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Run reliability tests
+        run: python -m unittest -v test_radar.py
+
+      - name: Select job
+        id: select
+        shell: bash
+        run: |
+          set -euo pipefail
           case "${{ github.event.schedule }}" in
-            "0 13 * * *"|"0 0 * * *") J=brief;;
-            "0 15 * * *"|"0 19 * * *") J=alert;;
-            "0 17 * * *") J=instagram;;
-            "0 16 * * 0") J=scoreboard;;
-            "30 21 * * 2,4") J=education;;
-            "0 14 * * *") J=story_tip;;
-            "0 21 * * *") J=story_radar;;
-            *) J="${{ github.event.inputs.job }}";;
+            "0 13 * * *") job=story_tip ;;
+            "0 17 * * *") job=instagram ;;
+            "0 21 * * *") job=story_radar ;;
+            *) job="${{ inputs.job || 'diagnose' }}" ;;
           esac
-          save() { git config user.name radar-bot; git config user.email bot@users.noreply.github.com
-                   git add -A state held public; git diff --cached --quiet || (git commit -m "radar: $J" && git push); }
-          case "$J" in
-            instagram) python bot.py ig_prepare; save; sleep 45; python bot.py ig_publish; save;;
-            story_tip|story_radar) python bot.py "${J}_prepare"; save; sleep 45; python bot.py story_publish; save;;
-            *) python bot.py "$J"; save;;
-          esac
+          echo "job=$job" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare content
+        if: steps.select.outputs.job != 'diagnose'
+        shell: bash
+        run: python bot.py "${{ steps.select.outputs.job }}_prepare"
+
+      - name: Save prepared state
+        if: steps.select.outputs.job != 'diagnose'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -u state
+          git add state/*.json
+          git diff --cached --quiet && exit 0
+          git commit -m "instagram: prepare ${{ steps.select.outputs.job }}"
+          git pull --rebase origin "${{ github.event.repository.default_branch }}"
+          git push origin "HEAD:${{ github.event.repository.default_branch }}"
+
+      - name: Publish temporary media branch
+        if: steps.select.outputs.job != 'diagnose'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          rmdir "$tmp"
+          git worktree add --detach "$tmp"
+          cd "$tmp"
+          git checkout --orphan media
+          git rm -rf .
+          if [[ "${{ steps.select.outputs.job }}" == "instagram" ]]; then
+            while IFS= read -r file; do cp "$GITHUB_WORKSPACE/public/$file" .; done < <(
+              python -c 'import json,os; print(*json.load(open(os.environ["GITHUB_WORKSPACE"]+"/state/ig_next.json"))["files"], sep="\n")'
+            )
+          else
+            file="$(python -c 'import json,os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/state/ig_story_next.json"))["file"])')"
+            cp "$GITHUB_WORKSPACE/public/$file" .
+          fi
+          printf 'Temporary public media for Instagram. Replaced automatically.\n' > README.md
+          git add .
+          git commit -m "media: ${{ steps.select.outputs.job }} ${{ github.run_id }}"
+          git push --force origin HEAD:media
+
+      - name: Publish to Instagram
+        if: steps.select.outputs.job != 'diagnose'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.select.outputs.job }}" == "instagram" ]]; then
+            python bot.py instagram_publish
+          else
+            python bot.py story_publish
+          fi
+
+      - name: Save confirmed publication state
+        if: steps.select.outputs.job != 'diagnose'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -u state
+          git add state/*.json
+          git diff --cached --quiet && exit 0
+          git commit -m "instagram: confirm ${{ steps.select.outputs.job }}"
+          git pull --rebase origin "${{ github.event.repository.default_branch }}"
+          git push origin "HEAD:${{ github.event.repository.default_branch }}"
+
+      - name: Diagnose Instagram connection
+        if: steps.select.outputs.job == 'diagnose'
+        run: python bot.py diagnose
