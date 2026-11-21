@@ -6,6 +6,7 @@ An Instagram-only, zero-server radar that publishes selective memecoin research 
 
 - One daily carousel only when a token passes every market, momentum and security threshold.
 - One educational story and one radar story per day.
+- One weekly `THE RECEIPT` carousel with wins and losses from the tracked 24-hour record.
 - Existing visual templates, fonts and brand styling are preserved.
 - Captions are deterministic and factual; no paid AI API is required.
 
@@ -48,3 +49,7 @@ JSON state is committed to the default branch. Generated images are never added 
 Run `diagnose` first. Use `DRY_RUN=true` for a preview, then set it to `false` after confirming the account connection. Failed publications remain pending and are not marked as posted.
 
 Momentum signals are research prompts, not endorsements or financial advice.
+
+## Public accountability
+
+After a confirmed publication, the radar stores the original price and checks the same token again at approximately 1 hour, 24 hours and 7 days. Weekly scorecards include negative outcomes and cannot silently delete a failed signal. This record becomes meaningful only after enough observations have accumulated.
