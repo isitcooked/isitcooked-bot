@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.venv/
+state/logo_*.png
+public/*.png
+public/*.jpg
+public/outbox/
