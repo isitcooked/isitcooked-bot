@@ -8,7 +8,7 @@ import bot
 
 class RadarTests(unittest.TestCase):
     def test_authority_carousels_are_complete_and_compliant(self):
-        self.assertGreaterEqual(len(bot.AUTHORITY_CAROUSELS), 5)
+        self.assertGreaterEqual(len(bot.AUTHORITY_CAROUSELS), 8)
         for item in bot.AUTHORITY_CAROUSELS:
             self.assertEqual(len(item["slides"]), 5)
             self.assertIn("COMMENT RADAR", item["slides"][-1])

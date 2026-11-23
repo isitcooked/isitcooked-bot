@@ -404,6 +404,39 @@ AUTHORITY_CAROUSELS=[
         ],
         "caption":"High volume can be organic, recycled or short-lived. Context decides which.\n\nOur radar compares volume with liquidity, transaction count, buyer pressure and price momentum before assigning a Cooked Score.\n\nSave this framework. Comment RADAR for the live intelligence feed. Not financial advice.\n\n#onchain #volume #memecoins #cryptoresearch #cryptoeducation",
     },
+    {
+        "title":"POV: YOU BOUGHT CANDLE NINE",
+        "slides":[
+            "POV: YOU BOUGHT\nCANDLE NUMBER NINE\n\nBECAUSE THIS ONE LOOKED EARLY",
+            "THE CHART BEFORE ENTRY\n+400%\n\nTHE CHART AFTER ENTRY\nA FORENSIC INVESTIGATION",
+            "FOMO HIDES THE QUESTIONS\n\nWHO IS SELLING?\nHOW DEEP IS LIQUIDITY?\nWHERE IS INVALIDATION?",
+            "THE MARKET CHARGES TUITION\nFOR IMPATIENCE\n\nA MISSED PUMP COSTS ZERO.",
+            "WANT THE LIVE RADAR?\nCOMMENT RADAR BELOW\n\nSELECTIVE ALERTS · PUBLIC RECEIPTS",
+        ],
+        "caption":"The candle feels safest after everyone can see it. That is usually when discipline matters most.\n\nA missed pump costs nothing. A chased entry can become an expensive lesson. Send this to the friend who always buys candle nine.\n\nComment RADAR for the live intelligence feed. Not financial advice.\n\n#cryptomemes #memecoins #fomo #solana #cryptoeducation",
+    },
+    {
+        "title":"CRYPTO RESEARCH STARTER PACK",
+        "slides":[
+            "CRYPTO RESEARCH\nSTARTER PACK\n\n37 TABS · 12 SCANNERS · 1% BATTERY",
+            "OPEN DEXSCREENER\nOPEN THE EXPLORER\nOPEN THE HOLDER MAP\n\nFORGET WHICH TAB HAD THE TOKEN",
+            "READ 400 MESSAGES\nIN THE GROUP CHAT\n\nZERO OF THEM CONTAIN THE CONTRACT",
+            "THE ACTUAL FIRST STEP\n\nVERIFY THE CA\n\nEVERYTHING ELSE COMES SECOND.",
+            "WANT THE LIVE RADAR?\nCOMMENT RADAR BELOW\n\nSELECTIVE ALERTS · PUBLIC RECEIPTS",
+        ],
+        "caption":"Research does not need to start with 37 tabs. Start by verifying the contract, then inspect liquidity, holders and transaction flow.\n\nSave this before the next ticker collision. Comment RADAR for the live intelligence feed.\n\nNot financial advice.\n\n#cryptomemes #cryptoresearch #memecoins #onchain #solana",
+    },
+    {
+        "title":"THE GROUP CHAT SAID EARLY",
+        "slides":[
+            "THE GROUP CHAT SAID\nWE ARE STILL EARLY",
+            "THE PAIR WAS 11 MINUTES OLD\n\nTHE MESSAGE HAD 19 ROCKET EMOJIS\nAND ZERO RISK DISCLOSURE",
+            "EARLY IS NOT A THESIS\n\nLIQUIDITY · HOLDERS · FLOW\nCONTRACT · EXIT PLAN",
+            "CONVICTION WITHOUT EVIDENCE\nIS JUST VOLUME\n\nVERIFY BEFORE YOU AMPLIFY.",
+            "WANT THE LIVE RADAR?\nCOMMENT RADAR BELOW\n\nSELECTIVE ALERTS · PUBLIC RECEIPTS",
+        ],
+        "caption":"“Still early” is not evidence. Before repeating a call, verify the contract and understand who can exit before you.\n\nTag the friend who speaks fluent rocket emoji. Comment RADAR for the live intelligence feed.\n\nNot financial advice.\n\n#cryptomemes #memecoins #cryptorisk #onchain #solana",
+    },
 ]
 
 
