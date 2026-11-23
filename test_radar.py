@@ -62,6 +62,13 @@ class RadarTests(unittest.TestCase):
             self.assertEqual(updated[0]["checkpoints"]["1h"]["change_pct"],25.0)
             self.assertEqual(updated[0]["checkpoints"]["24h"]["change_pct"],25.0)
 
+    def test_reel_library_is_original_and_complete(self):
+        self.assertGreaterEqual(len(bot.REEL_LIBRARY),4)
+        for item in bot.REEL_LIBRARY:
+            self.assertEqual(len(item["scenes"]),4)
+            self.assertIn("COMMENT RADAR",item["scenes"][-1])
+            self.assertIn("Not financial advice",item["caption"])
+
 
 if __name__ == "__main__":
     unittest.main()

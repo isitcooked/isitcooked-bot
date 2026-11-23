@@ -8,7 +8,9 @@ import os
 import pathlib
 import re
 import statistics
+import subprocess
 import sys
+import textwrap
 import time
 from urllib.parse import quote, urlsplit
 
@@ -326,7 +328,7 @@ def caption(data):
 
 def cleanup_media(days=3):
     cutoff=time.time()-days*86400
-    for path in list(PUBLIC.glob("*.png"))+list(PUBLIC.glob("*.jpg")):
+    for path in list(PUBLIC.glob("*.png"))+list(PUBLIC.glob("*.jpg"))+list(PUBLIC.glob("*.mp4")):
         if path.stat().st_mtime < cutoff: path.unlink(missing_ok=True)
 
 
@@ -460,6 +462,113 @@ def prepare_authority_carousel():
     print("prepared authority carousel:",item["title"])
 
 
+REEL_LIBRARY=[
+    {
+        "title":"CANDLE NINE",
+        "scenes":[
+            "POV: YOU WAITED\nFOR CONFIRMATION",
+            "EIGHT GREEN CANDLES LATER\n\nTHIS STILL LOOKS EARLY",
+            "A MISSED PUMP\nCOSTS ZERO",
+            "COMMENT RADAR\nFOR THE LIVE FEED",
+        ],
+        "caption":"The market charges tuition for impatience. A missed pump costs zero.\n\nComment RADAR for the live intelligence feed. Not financial advice.\n\n#cryptomemes #memecoins #solana #cryptoeducation",
+    },
+    {
+        "title":"37 TABS",
+        "scenes":[
+            "CRYPTO RESEARCH\nSTARTER PACK",
+            "37 TABS · 12 SCANNERS\n1% BATTERY",
+            "STEP ONE WAS ALWAYS\nVERIFY THE CONTRACT",
+            "COMMENT RADAR\nSIGNAL BEFORE NOISE",
+        ],
+        "caption":"Research does not need to start with 37 tabs. Verify the contract first.\n\nComment RADAR for the live intelligence feed. Not financial advice.\n\n#cryptoresearch #cryptomemes #memecoins #onchain",
+    },
+    {
+        "title":"VIRAL IS NOT LIQUID",
+        "scenes":[
+            "THE TOKEN IS VIRAL",
+            "THE EXIT DOOR\nIS STILL TINY",
+            "ATTENTION ≠ LIQUIDITY\n\nCHECK THE DEPTH",
+            "COMMENT RADAR\nPUBLIC RECEIPTS · NO HYPE",
+        ],
+        "caption":"Followers measure attention. Liquidity measures the exit door. Never confuse the two.\n\nComment RADAR for the live intelligence feed. Not financial advice.\n\n#liquidity #memecoins #cryptorisk #onchain",
+    },
+    {
+        "title":"STILL EARLY",
+        "scenes":[
+            "THE GROUP CHAT SAID\nWE ARE STILL EARLY",
+            "19 ROCKET EMOJIS\nZERO RISK DISCLOSURE",
+            "EARLY IS NOT A THESIS\n\nVERIFY BEFORE YOU AMPLIFY",
+            "COMMENT RADAR\nSELECTIVE ON-CHAIN SIGNALS",
+        ],
+        "caption":"“Still early” is not evidence. Verify before you amplify.\n\nComment RADAR for the live intelligence feed. Not financial advice.\n\n#cryptomemes #memecoins #cryptorisk #solana",
+    },
+]
+
+
+def reel_frame(text,index,total,path):
+    """Create one crisp 9:16 motion-design scene."""
+    width,height=1080,1920
+    image=Image.new("RGB",(width,height),"#040710"); draw=ImageDraw.Draw(image,"RGBA")
+    for y in range(height):
+        draw.line((0,y,width,y),fill=(4,7+y//320,18+y//90,255))
+    for radius,alpha in ((760,35),(560,50),(370,70),(190,95)):
+        draw.ellipse((540-radius,930-radius,540+radius,930+radius),outline=(42,222,255,alpha),width=4)
+    draw.polygon([(540,930),(1080,510),(1080,1360)],fill=(143,74,255,30))
+    draw.text((70,70),BRAND.upper(),font=ImageFont.truetype("DejaVuSans-Bold.ttf",42),fill="#FFFFFF")
+    draw.text((70,125),"SIGNAL BEFORE NOISE",font=ImageFont.truetype("DejaVuSans-Bold.ttf",24),fill="#53E7FF")
+    wrapped=[]
+    for paragraph in text.split("\n"):
+        wrapped.extend(textwrap.wrap(paragraph,width=20) or [""])
+    title_font=ImageFont.truetype("DejaVuSans-Bold.ttf",78 if len(wrapped)<=4 else 64)
+    line_height=title_font.size+25; y=830-(len(wrapped)*line_height)//2
+    for line in wrapped:
+        box=draw.textbbox((0,0),line,font=title_font)
+        draw.text(((width-(box[2]-box[0]))/2,y),line,font=title_font,fill="#FFFFFF")
+        y+=line_height
+    draw.rounded_rectangle((70,1715,1010,1810),radius=30,fill=(7,15,32,230),outline=(62,225,255,175),width=3)
+    footer=f"ON-CHAIN INTELLIGENCE   ·   {index+1:02d}/{total:02d}"
+    footer_font=ImageFont.truetype("DejaVuSans-Bold.ttf",25); box=draw.textbbox((0,0),footer,font=footer_font)
+    draw.text(((width-(box[2]-box[0]))/2,1746),footer,font=footer_font,fill="#65F4C4")
+    image.save(path,"PNG",optimize=True)
+
+
+def render_reel(item,prefix):
+    frames=[]
+    for index,text in enumerate(item["scenes"]):
+        path=PUBLIC/f"{prefix}_{index+1}.png"; reel_frame(text,index,len(item["scenes"]),path); frames.append(path)
+    output=PUBLIC/f"{prefix}.mp4"; filters=[]
+    for index in range(len(frames)):
+        filters.append(f"[{index}:v]scale=1080:1920,format=yuv420p,fade=t=in:st=0:d=0.25,fade=t=out:st=2.15:d=0.25[v{index}]")
+    filters.append("".join(f"[v{i}]" for i in range(len(frames)))+f"concat=n={len(frames)}:v=1:a=0[out]")
+    command=["ffmpeg","-y","-loglevel","error"]
+    for frame in frames: command += ["-loop","1","-t","2.4","-i",str(frame)]
+    duration=2.4*len(frames)
+    # Original synthetic sound bed: copyright-safe and fully automated. It is
+    # intentionally quiet because every Reel must also work with sound off.
+    command += ["-f","lavfi","-t",str(duration),"-i",
+                f"aevalsrc=0.035*sin(2*PI*55*t)+0.018*sin(2*PI*110*t):s=44100:d={duration}"]
+    filters.append(f"[{len(frames)}:a]afade=t=in:st=0:d=0.4,afade=t=out:st={duration-0.5}:d=0.5[aout]")
+    command += ["-filter_complex",";".join(filters),"-map","[out]","-map","[aout]","-r","30",
+                "-c:v","libx264","-preset","medium","-crf","19","-pix_fmt","yuv420p",
+                "-c:a","aac","-b:a","128k","-movflags","+faststart",str(output)]
+    subprocess.run(command,check=True,timeout=120)
+    for frame in frames: frame.unlink(missing_ok=True)
+    return output
+
+
+def job_reel_prepare():
+    cleanup_media(); recent=load("reel_recent",{})
+    today=dt.date.today().isoformat()
+    if recent.get("date")==today:return print("a Reel was already published today")
+    if load("ig_reel_next",None):return print("a Reel is already pending")
+    item=REEL_LIBRARY[(dt.date.today().toordinal()//2)%len(REEL_LIBRARY)]
+    prefix=f"reel_{dt.date.today():%Y%m%d}"; video=render_reel(item,prefix)
+    save("ig_reel_next",{"file":video.name,"caption":item["caption"],"title":item["title"],
+                         "prepared_at":dt.datetime.now(dt.timezone.utc).isoformat()})
+    print("prepared Reel:",item["title"],video.name)
+
+
 def ig_credentials():
     return (os.getenv("IG_HOST","https://graph.facebook.com").strip().rstrip("/"),
             os.environ["IG_USER_ID"].strip(), os.environ["IG_ACCESS_TOKEN"].strip().strip("\"'"))
@@ -495,6 +604,14 @@ def publish_story(url):
     ig_wait(host,cid,token); return ig_post(host,f"{user}/media_publish",{"creation_id":cid,"access_token":token})
 
 
+def publish_reel(url,text):
+    host,user,token=ig_credentials()
+    cid=ig_post(host,f"{user}/media",{"video_url":url,"media_type":"REELS","caption":text,
+                                      "share_to_feed":"true","access_token":token})["id"]
+    ig_wait(host,cid,token,tries=60)
+    return ig_post(host,f"{user}/media_publish",{"creation_id":cid,"access_token":token})
+
+
 def media_url(filename):
     repo=os.environ.get("GITHUB_REPOSITORY","isitcooked/isitcooked-bot"); version=quote(os.getenv("MEDIA_VERSION","latest"),safe="")
     return f"https://raw.githubusercontent.com/{repo}/{MEDIA_BRANCH}/{quote(filename)}?v={version}"
@@ -507,6 +624,16 @@ def wait_public(urls,tries=18):
         except requests.RequestException: pass
         time.sleep(min(15,3+attempt))
     raise TimeoutError("media images did not become publicly available")
+
+
+def wait_public_video(url,tries=24):
+    for attempt in range(tries):
+        try:
+            response=HTTP.get(url,timeout=25)
+            if response.ok and response.headers.get("content-type","").startswith("video/") and len(response.content)>10_000:return
+        except requests.RequestException:pass
+        time.sleep(min(15,3+attempt))
+    raise TimeoutError("Reel video did not become publicly available")
 
 
 def update_stats(post=False):
@@ -533,6 +660,18 @@ def job_instagram_publish():
     if pending.get("kind")=="authority":
         save("authority_recent",{"date":dt.date.today().isoformat(),"title":pending.get("authority_title"),
                                  "published_at":dt.datetime.now(dt.timezone.utc).isoformat()})
+
+
+def job_reel_publish():
+    pending=load("ig_reel_next",None)
+    if not pending or not pending.get("file"):return print("no Reel prepared")
+    url=media_url(pending["file"])
+    if DRY_RUN:return print("[DRY RUN REEL]",pending["caption"],url)
+    wait_public_video(url); result=publish_reel(url,pending["caption"])
+    if not result.get("id"):raise RuntimeError("Instagram did not confirm Reel publication")
+    save("reel_recent",{"date":dt.date.today().isoformat(),"title":pending.get("title"),
+                        "published_at":dt.datetime.now(dt.timezone.utc).isoformat()})
+    update_stats(True); (STATE/"ig_reel_next.json").unlink(missing_ok=True); print("Reel published:",result["id"])
 
 
 def job_scoreboard_prepare():
