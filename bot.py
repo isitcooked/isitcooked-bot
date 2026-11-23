@@ -335,7 +335,8 @@ def job_instagram_prepare():
     refresh_history()
     if load("ig_next",None): return print("a post is already prepared; publish it before replacing it")
     data=pick_promising(True)
-    if not data: return
+    if not data:
+        return prepare_authority_carousel()
     symbol=re.sub(r"[^A-Za-z0-9_-]","",data["token"]["symbol"][:10]) or "token"
     prefix=f"ig_{dt.datetime.now(dt.timezone.utc):%Y%m%d_%H%M}_{symbol}"; files=render_carousel(data,prefix)
     save("ig_next",{"files":[p.name for p in files],"caption":caption(data),
@@ -345,6 +346,80 @@ def job_instagram_prepare():
                    "score":data["radar_score"],"initial_liquidity":data["liquidity"]},
          "prepared_at":dt.datetime.now(dt.timezone.utc).isoformat()})
     print("prepared Instagram carousel:",[p.name for p in files])
+
+
+AUTHORITY_CAROUSELS=[
+    {
+        "title":"WHY MOST MEMECOIN CALLS FAIL",
+        "slides":[
+            "WHY MOST MEMECOIN CALLS FAIL\nTHE CANDLE IS NOT THE SIGNAL",
+            "VOLUME WITHOUT LIQUIDITY\nCAN BECOME AN EXIT TRAP\n\nA BIG NUMBER MEANS LITTLE IF THE POOL CANNOT ABSORB A SALE.",
+            "BUYERS WITHOUT STRUCTURE\nCAN BE BOT NOISE\n\nCOMPARE BUYS, SELLS, UNIQUE ACTIVITY AND TIME.",
+            "OUR RULE\nNO CLEAN STRUCTURE = NO CALL\n\nTHE RADAR CAN STAY SILENT. THAT IS A FEATURE.",
+        ],
+        "caption":"Most memecoin alerts start with a green candle. We start with structure.\n\nLiquidity, turnover, buyer pressure, pair age and basic contract risk must agree before a token earns a signal. When they do not, the radar stays silent.\n\nFollow for evidence-based memecoin research. Live radar through the link in bio.\n\nNot financial advice. DYOR.\n\n#memecoins #cryptoresearch #onchain #solana #cryptoeducation",
+    },
+    {
+        "title":"THE 60-SECOND TOKEN CHECK",
+        "slides":[
+            "THE 60-SECOND TOKEN CHECK\nBEFORE YOU TOUCH THE BUY BUTTON",
+            "1 · VERIFY THE CONTRACT\n\nNAMES AND TICKERS CAN BE COPIED. MATCH THE CA WITH OFFICIAL LINKS.",
+            "2 · CHECK THE EXIT DOOR\n\nLIQUIDITY MATTERS MORE THAN A SCREENSHOT OF MARKET CAP.",
+            "3 · READ THE FLOW\n\nVOLUME + REAL TRANSACTIONS + BUY PRESSURE\n\nONE METRIC ALONE IS NEVER ENOUGH.",
+        ],
+        "caption":"A fast market does not excuse a careless entry.\n\nVerify the contract, inspect liquidity and read transaction flow before interacting with a new token. A scanner is a first filter—not a guarantee.\n\nSave this checklist and share it with someone who needs it. Live radar in bio.\n\nNot financial advice.\n\n#cryptosafety #memecoins #onchain #solana #cryptoeducation",
+    },
+    {
+        "title":"MARKET CAP CAN LIE",
+        "slides":[
+            "MARKET CAP CAN LOOK HUGE\nWHILE THE EXIT DOOR IS TINY",
+            "MARKET CAP\nIS PRICE × SUPPLY\n\nIT DOES NOT TELL YOU HOW MUCH CAN ACTUALLY BE SOLD.",
+            "LIQUIDITY\nIS THE DEPTH AVAILABLE NOW\n\nLOW DEPTH MEANS MORE SLIPPAGE AND MORE FRAGILE PRICE ACTION.",
+            "READ BOTH\nCAP FOR CONTEXT\nLIQUIDITY FOR SURVIVAL\n\nSIGNAL BEFORE NOISE.",
+        ],
+        "caption":"Market cap gets the headline. Liquidity determines whether the market can absorb an exit.\n\nWe never evaluate one without the other. Save this post for the next time a chart looks too good to question.\n\nLive selective radar through the link in bio. Not financial advice.\n\n#memecoins #liquidity #cryptoresearch #onchain #cryptoeducation",
+    },
+    {
+        "title":"NO SIGNAL IS A SIGNAL",
+        "slides":[
+            "NO CLEAN SIGNAL TODAY?\nGOOD.",
+            "FORCED ACTIVITY\nIS NOT AN EDGE\n\nPOSTING A TOKEN EVERY DAY REWARDS CONTENT—NOT QUALITY.",
+            "PATIENCE FILTERS NOISE\n\nWE WAIT FOR LIQUIDITY, TURNOVER, BUYERS AND MOMENTUM TO ALIGN.",
+            "THE RADAR IS ALWAYS ON\nTHE ALERT IS EARNED\n\nFOLLOW THE PUBLIC RECEIPTS.",
+        ],
+        "caption":"The market does not owe us a clean setup every day.\n\nA selective radar should be allowed to say nothing. We would rather publish useful research than force a weak token call to fill the calendar.\n\nFollow the process. Live alerts through the link in bio. Not financial advice.\n\n#memecoins #cryptoresearch #tradingpsychology #onchain #solana",
+    },
+    {
+        "title":"VOLUME IS NOT CONVICTION",
+        "slides":[
+            "VOLUME IS ATTENTION\nNOT AUTOMATICALLY CONVICTION",
+            "ASK WHERE IT SITS\n\nIS VOLUME LARGE RELATIVE TO LIQUIDITY—or JUST A LARGE-LOOKING NUMBER?",
+            "ASK WHO IS ACTING\n\nDO TRANSACTIONS AND BUY/SELL FLOW CONFIRM THE MOVE?",
+            "THEN ASK IF PRICE AGREES\n\nFLOW + LIQUIDITY + MOMENTUM\nSIGNAL BEFORE NOISE.",
+        ],
+        "caption":"High volume can be organic, recycled or short-lived. Context decides which.\n\nOur radar compares volume with liquidity, transaction count, buyer pressure and price momentum before assigning a Cooked Score.\n\nSave this framework. Live radar in bio. Not financial advice.\n\n#onchain #volume #memecoins #cryptoresearch #cryptoeducation",
+    },
+]
+
+
+def prepare_authority_carousel():
+    """Keep the feed valuable when no token earns a signal."""
+    recent=load("authority_recent",{})
+    today=dt.date.today().isoformat()
+    if recent.get("date")==today:
+        return print("authority carousel already published today")
+    item=AUTHORITY_CAROUSELS[dt.date.today().toordinal()%len(AUTHORITY_CAROUSELS)]
+    prefix=f"authority_{dt.date.today():%Y%m%d}"; files=[]
+    for index,text in enumerate(item["slides"]):
+        png=PUBLIC/f"{prefix}_{index+1}.png"
+        render_html.slide_card(text,index,len(item["slides"]),png,BRAND.upper())
+        jpg=png.with_suffix(".jpg")
+        with Image.open(png) as image:image.convert("RGB").save(jpg,"JPEG",quality=92,optimize=True)
+        png.unlink(missing_ok=True); files.append(jpg)
+    save("ig_next",{"files":[p.name for p in files],"caption":item["caption"],"kind":"authority",
+                    "authority_title":item["title"],
+                    "prepared_at":dt.datetime.now(dt.timezone.utc).isoformat()})
+    print("prepared authority carousel:",item["title"])
 
 
 def ig_credentials():
@@ -417,6 +492,9 @@ def job_instagram_publish():
         history.append(record)
         save("history",history[-100:])
     update_stats(True); (STATE/"ig_next.json").unlink(missing_ok=True); print("carousel published:",result["id"])
+    if pending.get("kind")=="authority":
+        save("authority_recent",{"date":dt.date.today().isoformat(),"title":pending.get("authority_title"),
+                                 "published_at":dt.datetime.now(dt.timezone.utc).isoformat()})
 
 
 def job_scoreboard_prepare():
