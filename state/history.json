@@ -1,98 +1,109 @@
 [
- {
-  "symbol": "SIRIUS",
-  "address": "BTCmcoKg6J767Bum7nXVDPLsWAZs3ZdYwTQr7YnXpump",
-  "chain": "solana",
-  "price": "0.00003727",
-  "risk_count": 0,
-  "ts": 1794666879.5628169
- },
- {
-  "symbol": "SCRAP",
-  "address": "7x8HCyf5Z3JYWXmC7p6C4w11Hw6JAXFEiZy6PCDBpump",
-  "chain": "solana",
-  "price": "0.000006261",
-  "risk_count": 1,
-  "ts": 1794670321.187809
- },
- {
-  "symbol": "Sakura",
-  "address": "ANYq8tELPCSTvEjWVpxzgvtHu2K5vXFZZEmnNJfQpump",
-  "chain": "solana",
-  "price": "0.00003734",
-  "risk_count": 0,
-  "ts": 1794682156.3470788
- },
- {
-  "symbol": "Christmax",
-  "address": "D7MyAD7k3AqJpg4uxjUcmL51EDHrEsJxkjUynsxcpump",
-  "chain": "solana",
-  "price": "0.0002162",
-  "risk_count": 0,
-  "ts": 1794684641.6395457
- },
- {
-  "symbol": "PURR",
-  "address": "8RNUw4N655VSrZKuhGdywhbSMDTrheguFPfxbpE2NZHQ",
-  "chain": "solana",
-  "price": "0.002066",
-  "risk_count": 0,
-  "ts": 1794748027.0502932
- },
- {
-  "symbol": "CBUCKS",
-  "address": "DtcicPCKTKeAh7TDEzTym3hXeoHAoMiBdYJhMYxZpump",
-  "chain": "solana",
-  "price": "0.003545",
-  "risk_count": 0,
-  "ts": 1794748878.0827944
- },
- {
-  "symbol": "SLIDES",
-  "address": "8JNcbK2bWFxQnZsR6xQtgB3en7DcFSXW5xSyh6fYpump",
-  "chain": "solana",
-  "price": "0.00001617",
-  "risk_count": 0,
-  "ts": 1794756911.39338
- },
- {
-  "symbol": "DIGS",
-  "address": "9QT8K685Hrae4k11dhGXirdtpfAaimExtyfwt8cPpump",
-  "chain": "solana",
-  "price": "0.0001798",
-  "risk_count": 0,
-  "ts": 1794769492.1769762
- },
- {
-  "symbol": "BUTTHOLE",
-  "address": "4B8CdHPZ8ng1CtMP2Jk2W8wGAwJ5nJnap1deVsz2pump",
-  "chain": "solana",
-  "price": "0.0002844",
-  "risk_count": 0,
-  "ts": 1794771123.8913128
- },
- {
-  "symbol": "Nyajira",
-  "address": "8cWGfiHyKqxgLrLtkPt2NnLkSUV2JbcLBf4RN6Fapump",
-  "chain": "solana",
-  "price": "0.00005825",
-  "risk_count": 0,
-  "ts": 1794772845.567124
- },
- {
-  "symbol": "penny",
-  "address": "5gmCPpuktJ7Svjgr4PPJBTosAFKB8K6Z45EGfSUmpump",
-  "chain": "solana",
-  "price": "0.00001126",
-  "risk_count": 1,
-  "ts": 1794847095.2540298
- },
- {
-  "symbol": "LEMON",
-  "address": "Gi4cb3A4traf2rSkhJh6oqtLpPGwVhZonif1xAEEpump",
-  "chain": "solana",
-  "price": "0.0001084",
-  "risk_count": 0,
-  "ts": 1794858482.0831857
- }
+  {
+    "symbol": "SIRIUS",
+    "address": "BTCmcoKg6J767Bum7nXVDPLsWAZs3ZdYwTQr7YnXpump",
+    "chain": "solana",
+    "price": "0.00003727",
+    "risk_count": 0,
+    "ts": 1794666879.5628169
+  },
+  {
+    "symbol": "SCRAP",
+    "address": "7x8HCyf5Z3JYWXmC7p6C4w11Hw6JAXFEiZy6PCDBpump",
+    "chain": "solana",
+    "price": "0.000006261",
+    "risk_count": 1,
+    "ts": 1794670321.187809
+  },
+  {
+    "symbol": "Sakura",
+    "address": "ANYq8tELPCSTvEjWVpxzgvtHu2K5vXFZZEmnNJfQpump",
+    "chain": "solana",
+    "price": "0.00003734",
+    "risk_count": 0,
+    "ts": 1794682156.3470788
+  },
+  {
+    "symbol": "Christmax",
+    "address": "D7MyAD7k3AqJpg4uxjUcmL51EDHrEsJxkjUynsxcpump",
+    "chain": "solana",
+    "price": "0.0002162",
+    "risk_count": 0,
+    "ts": 1794684641.6395457
+  },
+  {
+    "symbol": "PURR",
+    "address": "8RNUw4N655VSrZKuhGdywhbSMDTrheguFPfxbpE2NZHQ",
+    "chain": "solana",
+    "price": "0.002066",
+    "risk_count": 0,
+    "ts": 1794748027.0502932
+  },
+  {
+    "symbol": "CBUCKS",
+    "address": "DtcicPCKTKeAh7TDEzTym3hXeoHAoMiBdYJhMYxZpump",
+    "chain": "solana",
+    "price": "0.003545",
+    "risk_count": 0,
+    "ts": 1794748878.0827944
+  },
+  {
+    "symbol": "SLIDES",
+    "address": "8JNcbK2bWFxQnZsR6xQtgB3en7DcFSXW5xSyh6fYpump",
+    "chain": "solana",
+    "price": "0.00001617",
+    "risk_count": 0,
+    "ts": 1794756911.39338
+  },
+  {
+    "symbol": "DIGS",
+    "address": "9QT8K685Hrae4k11dhGXirdtpfAaimExtyfwt8cPpump",
+    "chain": "solana",
+    "price": "0.0001798",
+    "risk_count": 0,
+    "ts": 1794769492.1769762
+  },
+  {
+    "symbol": "BUTTHOLE",
+    "address": "4B8CdHPZ8ng1CtMP2Jk2W8wGAwJ5nJnap1deVsz2pump",
+    "chain": "solana",
+    "price": "0.0002844",
+    "risk_count": 0,
+    "ts": 1794771123.8913128
+  },
+  {
+    "symbol": "Nyajira",
+    "address": "8cWGfiHyKqxgLrLtkPt2NnLkSUV2JbcLBf4RN6Fapump",
+    "chain": "solana",
+    "price": "0.00005825",
+    "risk_count": 0,
+    "ts": 1794772845.567124
+  },
+  {
+    "symbol": "penny",
+    "address": "5gmCPpuktJ7Svjgr4PPJBTosAFKB8K6Z45EGfSUmpump",
+    "chain": "solana",
+    "price": "0.00001126",
+    "risk_count": 1,
+    "ts": 1794847095.2540298
+  },
+  {
+    "symbol": "LEMON",
+    "address": "Gi4cb3A4traf2rSkhJh6oqtLpPGwVhZonif1xAEEpump",
+    "chain": "solana",
+    "price": "0.0001084",
+    "risk_count": 0,
+    "ts": 1794858482.0831857
+  },
+  {
+    "symbol": "PumpMeme",
+    "chain": "solana",
+    "address": "93uamrbDerKbUh8MSjNF1wDtxYvEUD1CS9BcHn1apump",
+    "initial_price": 0.00117,
+    "score": 81,
+    "initial_liquidity": 80212.16,
+    "published_at": 1795456051.449426,
+    "checkpoints": {},
+    "peak_change_pct": 0
+  }
 ]
