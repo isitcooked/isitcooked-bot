@@ -7,6 +7,13 @@ import bot
 
 
 class RadarTests(unittest.TestCase):
+    def test_authority_carousels_are_complete_and_compliant(self):
+        self.assertGreaterEqual(len(bot.AUTHORITY_CAROUSELS), 5)
+        for item in bot.AUTHORITY_CAROUSELS:
+            self.assertEqual(len(item["slides"]), 4)
+            self.assertIn("Not financial advice", item["caption"])
+            self.assertIn("bio", item["caption"].lower())
+
     def good_snapshot(self):
         return {"age": 8, "liq": 80000, "v1": 90000, "v5": 15000, "v24": 400000,
                 "buys": 150, "sells": 70, "c1": 24, "c5": 4,
