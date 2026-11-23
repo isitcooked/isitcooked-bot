@@ -766,6 +766,7 @@ def job_diagnose():
 
 
 JOBS={"instagram_prepare":job_instagram_prepare,"instagram_publish":job_instagram_publish,
+      "reel_prepare":job_reel_prepare,"reel_publish":job_reel_publish,
       "scoreboard_prepare":job_scoreboard_prepare,
       "story_tip_prepare":job_story_tip_prepare,"story_radar_prepare":job_story_radar_prepare,
       "story_publish":job_story_publish,"diagnose":job_diagnose}

@@ -68,6 +68,8 @@ class RadarTests(unittest.TestCase):
             self.assertEqual(len(item["scenes"]),4)
             self.assertIn("COMMENT RADAR",item["scenes"][-1])
             self.assertIn("Not financial advice",item["caption"])
+        self.assertIn("reel_prepare",bot.JOBS)
+        self.assertIn("reel_publish",bot.JOBS)
 
 
 if __name__ == "__main__":
