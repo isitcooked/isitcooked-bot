@@ -11,9 +11,9 @@ class RadarTests(unittest.TestCase):
         self.assertGreaterEqual(len(bot.AUTHORITY_CAROUSELS), 5)
         for item in bot.AUTHORITY_CAROUSELS:
             self.assertEqual(len(item["slides"]), 5)
-            self.assertIn("TELEGRAM", item["slides"][-1])
+            self.assertIn("COMMENT RADAR", item["slides"][-1])
             self.assertIn("Not financial advice", item["caption"])
-            self.assertIn("bio", item["caption"].lower())
+            self.assertIn("Comment RADAR", item["caption"])
 
     def good_snapshot(self):
         return {"age": 8, "liq": 80000, "v1": 90000, "v5": 15000, "v24": 400000,
@@ -49,6 +49,7 @@ class RadarTests(unittest.TestCase):
         text = bot.caption(data)
         self.assertIn("Radar score: 82/100", text)
         self.assertIn("Not financial advice", text)
+        self.assertIn("Comment RADAR", text)
         self.assertIn("A"*32, text)
 
     def test_outcomes_are_recorded_without_cherry_picking(self):

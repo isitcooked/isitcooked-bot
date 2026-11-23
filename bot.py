@@ -320,7 +320,7 @@ def caption(data):
     return "\n\n".join((f"${token['symbol'].upper()} just entered the IS IT COOKED? watchlist.",
         f"Radar score: {data['radar_score']}/100\nLiquidity: {fmt_usd(data['liquidity'])}\n1h volume: {fmt_usd(data['volume'])}\nBuy pressure: {ratio:.0f}%\n1h change: {data['change_h1']:+.1f}%",
         security, f"{token['chain_name']} contract:\n{token['address']}",
-        "Save this research card, verify the contract and follow for the next signal. Live radar: link in bio.",
+        "Comment RADAR for the live intelligence feed, then verify the contract before acting. Save this card and follow for the public receipt.",
         "Promising momentum is not a guarantee. Not financial advice. Always do your own research.", tags))
 
 
@@ -356,9 +356,9 @@ AUTHORITY_CAROUSELS=[
             "VOLUME WITHOUT LIQUIDITY\nCAN BECOME AN EXIT TRAP\n\nA BIG NUMBER MEANS LITTLE IF THE POOL CANNOT ABSORB A SALE.",
             "BUYERS WITHOUT STRUCTURE\nCAN BE BOT NOISE\n\nCOMPARE BUYS, SELLS, UNIQUE ACTIVITY AND TIME.",
             "OUR RULE\nNO CLEAN STRUCTURE = NO CALL\n\nTHE RADAR CAN STAY SILENT. THAT IS A FEATURE.",
-            "WANT THE LIVE RADAR?\nJOIN TELEGRAM VIA LINK IN BIO\n\nSELECTIVE ALERTS · PUBLIC RECEIPTS",
+            "WANT THE LIVE RADAR?\nCOMMENT RADAR BELOW\n\nSELECTIVE ALERTS · PUBLIC RECEIPTS",
         ],
-        "caption":"Most memecoin alerts start with a green candle. We start with structure.\n\nLiquidity, turnover, buyer pressure, pair age and basic contract risk must agree before a token earns a signal. When they do not, the radar stays silent.\n\nFollow for evidence-based memecoin research. Live radar through the link in bio.\n\nNot financial advice. DYOR.\n\n#memecoins #cryptoresearch #onchain #solana #cryptoeducation",
+        "caption":"Most memecoin alerts start with a green candle. We start with structure.\n\nLiquidity, turnover, buyer pressure, pair age and basic contract risk must agree before a token earns a signal. When they do not, the radar stays silent.\n\nComment RADAR for the live intelligence feed. Follow for evidence-based research and public receipts.\n\nNot financial advice. DYOR.\n\n#memecoins #cryptoresearch #onchain #solana #cryptoeducation",
     },
     {
         "title":"THE 60-SECOND TOKEN CHECK",
@@ -367,9 +367,9 @@ AUTHORITY_CAROUSELS=[
             "1 · VERIFY THE CONTRACT\n\nNAMES AND TICKERS CAN BE COPIED. MATCH THE CA WITH OFFICIAL LINKS.",
             "2 · CHECK THE EXIT DOOR\n\nLIQUIDITY MATTERS MORE THAN A SCREENSHOT OF MARKET CAP.",
             "3 · READ THE FLOW\n\nVOLUME + REAL TRANSACTIONS + BUY PRESSURE\n\nONE METRIC ALONE IS NEVER ENOUGH.",
-            "WANT THE LIVE RADAR?\nJOIN TELEGRAM VIA LINK IN BIO\n\nSELECTIVE ALERTS · PUBLIC RECEIPTS",
+            "WANT THE LIVE RADAR?\nCOMMENT RADAR BELOW\n\nSELECTIVE ALERTS · PUBLIC RECEIPTS",
         ],
-        "caption":"A fast market does not excuse a careless entry.\n\nVerify the contract, inspect liquidity and read transaction flow before interacting with a new token. A scanner is a first filter—not a guarantee.\n\nSave this checklist and share it with someone who needs it. Live radar in bio.\n\nNot financial advice.\n\n#cryptosafety #memecoins #onchain #solana #cryptoeducation",
+        "caption":"A fast market does not excuse a careless entry.\n\nVerify the contract, inspect liquidity and read transaction flow before interacting with a new token. A scanner is a first filter—not a guarantee.\n\nSave this checklist and share it with someone who needs it. Comment RADAR for the live intelligence feed.\n\nNot financial advice.\n\n#cryptosafety #memecoins #onchain #solana #cryptoeducation",
     },
     {
         "title":"MARKET CAP CAN LIE",
@@ -378,9 +378,9 @@ AUTHORITY_CAROUSELS=[
             "MARKET CAP\nIS PRICE × SUPPLY\n\nIT DOES NOT TELL YOU HOW MUCH CAN ACTUALLY BE SOLD.",
             "LIQUIDITY\nIS THE DEPTH AVAILABLE NOW\n\nLOW DEPTH MEANS MORE SLIPPAGE AND MORE FRAGILE PRICE ACTION.",
             "READ BOTH\nCAP FOR CONTEXT\nLIQUIDITY FOR SURVIVAL\n\nSIGNAL BEFORE NOISE.",
-            "WANT THE LIVE RADAR?\nJOIN TELEGRAM VIA LINK IN BIO\n\nSELECTIVE ALERTS · PUBLIC RECEIPTS",
+            "WANT THE LIVE RADAR?\nCOMMENT RADAR BELOW\n\nSELECTIVE ALERTS · PUBLIC RECEIPTS",
         ],
-        "caption":"Market cap gets the headline. Liquidity determines whether the market can absorb an exit.\n\nWe never evaluate one without the other. Save this post for the next time a chart looks too good to question.\n\nLive selective radar through the link in bio. Not financial advice.\n\n#memecoins #liquidity #cryptoresearch #onchain #cryptoeducation",
+        "caption":"Market cap gets the headline. Liquidity determines whether the market can absorb an exit.\n\nWe never evaluate one without the other. Save this post for the next time a chart looks too good to question.\n\nComment RADAR for the live intelligence feed. Not financial advice.\n\n#memecoins #liquidity #cryptoresearch #onchain #cryptoeducation",
     },
     {
         "title":"NO SIGNAL IS A SIGNAL",
@@ -389,9 +389,9 @@ AUTHORITY_CAROUSELS=[
             "FORCED ACTIVITY\nIS NOT AN EDGE\n\nPOSTING A TOKEN EVERY DAY REWARDS CONTENT—NOT QUALITY.",
             "PATIENCE FILTERS NOISE\n\nWE WAIT FOR LIQUIDITY, TURNOVER, BUYERS AND MOMENTUM TO ALIGN.",
             "THE RADAR IS ALWAYS ON\nTHE ALERT IS EARNED\n\nFOLLOW THE PUBLIC RECEIPTS.",
-            "WANT THE LIVE RADAR?\nJOIN TELEGRAM VIA LINK IN BIO\n\nSELECTIVE ALERTS · PUBLIC RECEIPTS",
+            "WANT THE LIVE RADAR?\nCOMMENT RADAR BELOW\n\nSELECTIVE ALERTS · PUBLIC RECEIPTS",
         ],
-        "caption":"The market does not owe us a clean setup every day.\n\nA selective radar should be allowed to say nothing. We would rather publish useful research than force a weak token call to fill the calendar.\n\nFollow the process. Live alerts through the link in bio. Not financial advice.\n\n#memecoins #cryptoresearch #tradingpsychology #onchain #solana",
+        "caption":"The market does not owe us a clean setup every day.\n\nA selective radar should be allowed to say nothing. We would rather publish useful research than force a weak token call to fill the calendar.\n\nComment RADAR for the live intelligence feed. Follow the process and the public receipts. Not financial advice.\n\n#memecoins #cryptoresearch #tradingpsychology #onchain #solana",
     },
     {
         "title":"VOLUME IS NOT CONVICTION",
@@ -400,9 +400,9 @@ AUTHORITY_CAROUSELS=[
             "ASK WHERE IT SITS\n\nIS VOLUME LARGE RELATIVE TO LIQUIDITY—or JUST A LARGE-LOOKING NUMBER?",
             "ASK WHO IS ACTING\n\nDO TRANSACTIONS AND BUY/SELL FLOW CONFIRM THE MOVE?",
             "THEN ASK IF PRICE AGREES\n\nFLOW + LIQUIDITY + MOMENTUM\nSIGNAL BEFORE NOISE.",
-            "WANT THE LIVE RADAR?\nJOIN TELEGRAM VIA LINK IN BIO\n\nSELECTIVE ALERTS · PUBLIC RECEIPTS",
+            "WANT THE LIVE RADAR?\nCOMMENT RADAR BELOW\n\nSELECTIVE ALERTS · PUBLIC RECEIPTS",
         ],
-        "caption":"High volume can be organic, recycled or short-lived. Context decides which.\n\nOur radar compares volume with liquidity, transaction count, buyer pressure and price momentum before assigning a Cooked Score.\n\nSave this framework. Live radar in bio. Not financial advice.\n\n#onchain #volume #memecoins #cryptoresearch #cryptoeducation",
+        "caption":"High volume can be organic, recycled or short-lived. Context decides which.\n\nOur radar compares volume with liquidity, transaction count, buyer pressure and price momentum before assigning a Cooked Score.\n\nSave this framework. Comment RADAR for the live intelligence feed. Not financial advice.\n\n#onchain #volume #memecoins #cryptoresearch #cryptoeducation",
     },
 ]
 
