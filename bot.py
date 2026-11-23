@@ -614,6 +614,11 @@ def publish_reel(url,text):
 
 def media_url(filename):
     repo=os.environ.get("GITHUB_REPOSITORY","isitcooked/isitcooked-bot"); version=quote(os.getenv("MEDIA_VERSION","latest"),safe="")
+    if str(filename).lower().endswith(".mp4"):
+        # raw.githubusercontent.com serves MP4 as application/octet-stream.
+        # jsDelivr preserves video/mp4, byte ranges and public HTTPS access,
+        # which Meta requires when ingesting a Reel container.
+        return f"https://cdn.jsdelivr.net/gh/{repo}@{MEDIA_BRANCH}/{quote(filename)}?v={version}"
     return f"https://raw.githubusercontent.com/{repo}/{MEDIA_BRANCH}/{quote(filename)}?v={version}"
 
 

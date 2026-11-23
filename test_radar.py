@@ -70,6 +70,8 @@ class RadarTests(unittest.TestCase):
             self.assertIn("Not financial advice",item["caption"])
         self.assertIn("reel_prepare",bot.JOBS)
         self.assertIn("reel_publish",bot.JOBS)
+        self.assertIn("cdn.jsdelivr.net",bot.media_url("example.mp4"))
+        self.assertIn("raw.githubusercontent.com",bot.media_url("example.jpg"))
 
 
 if __name__ == "__main__":
