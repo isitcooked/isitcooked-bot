@@ -561,7 +561,14 @@ def job_reel_prepare():
     cleanup_media(); recent=load("reel_recent",{})
     today=dt.date.today().isoformat()
     if recent.get("date")==today:return print("a Reel was already published today")
-    if load("ig_reel_next",None):return print("a Reel is already pending")
+    pending=load("ig_reel_next",None)
+    if pending:
+        output=PUBLIC/pending.get("file","")
+        if output.is_file():return print("a Reel is already pending")
+        item=next((entry for entry in REEL_LIBRARY if entry["title"]==pending.get("title")),None)
+        if not item:raise RuntimeError("Pending Reel template is no longer available")
+        render_reel(item,output.stem)
+        return print("regenerated pending Reel:",pending["title"])
     item=REEL_LIBRARY[(dt.date.today().toordinal()//2)%len(REEL_LIBRARY)]
     prefix=f"reel_{dt.date.today():%Y%m%d}"; video=render_reel(item,prefix)
     save("ig_reel_next",{"file":video.name,"caption":item["caption"],"title":item["title"],
