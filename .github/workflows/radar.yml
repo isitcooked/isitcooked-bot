@@ -58,21 +58,6 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install verified dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends ffmpeg
-          python -m pip install --disable-pip-version-check -r requirements.txt
-          playwright install --with-deps chromium
-
-      - name: Configure Git
-        run: |
-          git config user.name 'instagram-radar[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-
-      - name: Run reliability tests
-        run: python -m unittest -v test_radar.py
-
       - name: Select job
         id: select
         shell: bash
@@ -87,6 +72,24 @@ jobs:
             *) job="${{ inputs.job || 'diagnose' }}" ;;
           esac
           echo "job=$job" >> "$GITHUB_OUTPUT"
+
+      - name: Install verified dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          if [[ "${{ steps.select.outputs.job }}" == "reel" ]]; then
+            sudo apt-get update
+            sudo apt-get install --yes --no-install-recommends ffmpeg
+          else
+            playwright install --with-deps chromium
+          fi
+
+      - name: Configure Git
+        run: |
+          git config user.name 'instagram-radar[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Run reliability tests
+        run: python -m unittest -v test_radar.py
 
       - name: Prepare content
         if: steps.select.outputs.job != 'diagnose'
