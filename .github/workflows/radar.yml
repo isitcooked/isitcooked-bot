@@ -4,7 +4,8 @@ on:
   schedule:
     # UTC. Canary Islands: same time in winter, +1 hour locally in summer.
     - cron: "0 13 * * *"   # educational story
-    - cron: "30 15 * * 1,3,5" # original discovery Reel
+    # Automated template Reels are intentionally paused. Re-enable only after
+    # a human-reviewed pilot proves retention, shares, saves, and follows.
     - cron: "0 17 * * *"   # daily high-quality carousel
     - cron: "0 18 * * 0"   # weekly transparent results carousel
     - cron: "0 21 * * *"   # promising-token story
@@ -13,7 +14,7 @@ on:
       job:
         description: "Choose a safe Instagram job"
         type: choice
-        options: [instagram, reel, scoreboard, story_tip, story_radar, diagnose]
+        options: [instagram, scoreboard, story_tip, story_radar, diagnose]
         default: diagnose
 
 permissions:
