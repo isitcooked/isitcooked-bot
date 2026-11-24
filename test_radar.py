@@ -7,6 +7,18 @@ import bot
 
 
 class RadarTests(unittest.TestCase):
+    def test_feed_uses_a_data_brief_instead_of_generic_filler(self):
+        """A no-signal day must still produce evidence-based content."""
+        with patch.object(bot, "load", return_value=None), \
+             patch.object(bot, "refresh_history"), \
+             patch.object(bot, "cleanup_media"), \
+             patch.object(bot, "pick_promising", return_value=None), \
+             patch.object(bot, "prepare_market_brief") as brief, \
+             patch.object(bot, "prepare_authority_carousel") as filler:
+            bot.job_instagram_prepare()
+        brief.assert_called_once_with()
+        filler.assert_not_called()
+
     def test_authority_carousels_are_complete_and_compliant(self):
         self.assertGreaterEqual(len(bot.AUTHORITY_CAROUSELS), 8)
         for item in bot.AUTHORITY_CAROUSELS:

@@ -332,13 +332,69 @@ def cleanup_media(days=3):
         if path.stat().st_mtime < cutoff: path.unlink(missing_ok=True)
 
 
+def prepare_market_brief():
+    """Turn a no-signal day into a transparent, data-backed market briefing.
+
+    This is deliberately not a substitute signal.  It explains what the radar
+    actually observed and why candidates did not earn publication.
+    """
+    recent=load("brief_recent", {})
+    today=dt.date.today().isoformat()
+    if recent.get("date")==today:
+        return print("market brief already published today")
+    pairs=discovery_pairs()
+    rows=[]
+    for pair in pairs:
+        try: rows.append(snapshot(pair))
+        except Exception as exc: print("brief snapshot skipped:", exc)
+    if not rows:
+        return print("no reliable market data; nothing will be published")
+
+    liquid=sum(row["liq"] >= MIN_LIQUIDITY for row in rows)
+    active=sum(row["v1"] >= MIN_VOLUME_1H for row in rows)
+    pressure=sum(row["buys"] > row["sells"] for row in rows)
+    structured=sum(qualifies(row) for row in rows)
+    fail_liq=sum(row["liq"] < MIN_LIQUIDITY for row in rows)
+    fail_volume=sum(row["v1"] < MIN_VOLUME_1H for row in rows)
+    fail_flow=sum(row["buys"] <= row["sells"] for row in rows)
+    median_liq=statistics.median(row["liq"] for row in rows)
+    median_vol=statistics.median(row["v1"] for row in rows)
+    date_label=dt.date.today().strftime("%d %b %Y").upper()
+    slides=[
+        f"THE RADAR BRIEF\n{date_label}\n\nREAL MARKET DATA. ZERO FORCED CALLS.",
+        f"{len(rows)} PAIRS SCANNED\n\nMEDIAN LIQUIDITY  {fmt_usd(median_liq)}\nMEDIAN 1H VOLUME  {fmt_usd(median_vol)}",
+        f"THE MARKET GATE\n\n{liquid}  PASSED LIQUIDITY\n{active}  PASSED 1H VOLUME\n{pressure}  HAD BUY PRESSURE\n{structured}  PASSED THE FULL STRUCTURE",
+        f"WHY CANDIDATES FAILED\n\n{fail_liq}  LOW LIQUIDITY\n{fail_volume}  LOW 1H VOLUME\n{fail_flow}  WEAK BUY/SELL FLOW",
+        "NO CLEAN STRUCTURE?\nNO SIGNAL.\n\nSAVE THE BRIEF. FOLLOW THE NEXT MOVE.\nLIVE RADAR IN BIO.",
+    ]
+    prefix=f"brief_{dt.date.today():%Y%m%d}"; files=[]
+    for index,text in enumerate(slides):
+        png=PUBLIC/f"{prefix}_{index+1}.png"
+        render_html.slide_card(text,index,len(slides),png,BRAND.upper())
+        jpg=png.with_suffix(".jpg")
+        with Image.open(png) as image:image.convert("RGB").save(jpg,"JPEG",quality=92,optimize=True)
+        png.unlink(missing_ok=True); files.append(jpg)
+    caption_text="\n\n".join((
+        f"THE RADAR BRIEF — {date_label}",
+        f"Pairs scanned: {len(rows)}\nPassed the complete market-structure gate: {structured}\n"
+        f"Median liquidity: {fmt_usd(median_liq)}\nMedian 1h volume: {fmt_usd(median_vol)}",
+        "A quiet radar is information. We do not manufacture a call to fill the feed.",
+        "Save this briefing and follow for the next qualified signal and its public receipt.",
+        "Source: DexScreener public market data at scan time. Not financial advice. DYOR.",
+        "#memecoins #onchain #cryptoresearch #solana #basechain",
+    ))
+    save("ig_next",{"files":[p.name for p in files],"caption":caption_text,"kind":"market_brief",
+                    "brief_date":today,"prepared_at":dt.datetime.now(dt.timezone.utc).isoformat()})
+    print("prepared data-backed market brief:", len(rows), "pairs", structured, "qualified")
+
+
 def job_instagram_prepare():
     cleanup_media()
     refresh_history()
     if load("ig_next",None): return print("a post is already prepared; publish it before replacing it")
     data=pick_promising(True)
     if not data:
-        return prepare_authority_carousel()
+        return prepare_market_brief()
     symbol=re.sub(r"[^A-Za-z0-9_-]","",data["token"]["symbol"][:10]) or "token"
     prefix=f"ig_{dt.datetime.now(dt.timezone.utc):%Y%m%d_%H%M}_{symbol}"; files=render_carousel(data,prefix)
     save("ig_next",{"files":[p.name for p in files],"caption":caption(data),
@@ -672,6 +728,9 @@ def job_instagram_publish():
     if pending.get("kind")=="authority":
         save("authority_recent",{"date":dt.date.today().isoformat(),"title":pending.get("authority_title"),
                                  "published_at":dt.datetime.now(dt.timezone.utc).isoformat()})
+    if pending.get("kind")=="market_brief":
+        save("brief_recent",{"date":pending.get("brief_date",dt.date.today().isoformat()),
+                             "published_at":dt.datetime.now(dt.timezone.utc).isoformat()})
 
 
 def job_reel_publish():

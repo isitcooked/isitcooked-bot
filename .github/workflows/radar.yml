@@ -6,7 +6,7 @@ on:
     - cron: "0 13 * * *"   # educational story
     # Automated template Reels are intentionally paused. Re-enable only after
     # a human-reviewed pilot proves retention, shares, saves, and follows.
-    - cron: "0 17 * * *"   # daily high-quality carousel
+    - cron: "0 17 * * *"   # daily signal scan; silence is allowed
     - cron: "0 18 * * 0"   # weekly transparent results carousel
     - cron: "0 21 * * *"   # promising-token story
   workflow_dispatch:
