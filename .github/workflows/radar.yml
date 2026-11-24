@@ -9,12 +9,13 @@ on:
     - cron: "0 17 * * *"   # daily signal scan; silence is allowed
     - cron: "0 18 * * 0"   # weekly transparent results carousel
     - cron: "0 21 * * *"   # promising-token story
+    - cron: "17,47 * * * *" # consent-based RADAR comment-to-DM funnel
   workflow_dispatch:
     inputs:
       job:
         description: "Choose a safe Instagram job"
         type: choice
-        options: [instagram, scoreboard, story_tip, story_radar, diagnose]
+        options: [instagram, scoreboard, story_tip, story_radar, engage, diagnose]
         default: diagnose
 
 permissions:
@@ -70,6 +71,7 @@ jobs:
             "0 17 * * *") job=instagram ;;
             "0 18 * * 0") job=scoreboard ;;
             "0 21 * * *") job=story_radar ;;
+            "17,47 * * * *") job=engage ;;
             *) job="${{ inputs.job || 'diagnose' }}" ;;
           esac
           echo "job=$job" >> "$GITHUB_OUTPUT"
@@ -80,6 +82,8 @@ jobs:
           if [[ "${{ steps.select.outputs.job }}" == "reel" ]]; then
             sudo apt-get update
             sudo apt-get install --yes --no-install-recommends ffmpeg
+          elif [[ "${{ steps.select.outputs.job }}" == "engage" ]]; then
+            echo "Comment funnel uses Python dependencies only."
           else
             playwright install --with-deps chromium
           fi
@@ -93,13 +97,13 @@ jobs:
         run: python -m unittest -v test_radar.py
 
       - name: Prepare content
-        if: steps.select.outputs.job != 'diagnose'
+        if: steps.select.outputs.job != 'diagnose' && steps.select.outputs.job != 'engage'
         shell: bash
         run: python bot.py "${{ steps.select.outputs.job }}_prepare"
 
       - name: Check whether content was prepared
         id: prepared
-        if: steps.select.outputs.job != 'diagnose'
+        if: steps.select.outputs.job != 'diagnose' && steps.select.outputs.job != 'engage'
         shell: bash
         run: |
           case "${{ steps.select.outputs.job }}" in
@@ -181,3 +185,7 @@ jobs:
       - name: Diagnose Instagram connection
         if: steps.select.outputs.job == 'diagnose'
         run: python bot.py diagnose
+
+      - name: Convert RADAR comments to Telegram members
+        if: steps.select.outputs.job == 'engage'
+        run: python bot.py engage

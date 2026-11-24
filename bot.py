@@ -643,6 +643,39 @@ def ig_post(host,path,data):
     return response.json()
 
 
+def ig_get(host,path,params):
+    response=HTTP.get(f"{host}/{path}",params=params,timeout=45)
+    if not response.ok:
+        raise RuntimeError(f"Instagram API {response.status_code} on {path}: {response.text[:400]}")
+    return response.json()
+
+
+def job_engage():
+    """DM the radar link once to people who explicitly comment RADAR."""
+    host,user,token=ig_credentials(); seen=set(load("dm_replied",[])); updated=list(seen)
+    media=ig_get(host,f"{user}/media",{"fields":"id,timestamp","limit":12,"access_token":token})
+    matched=sent=0
+    for post in media.get("data") or []:
+        post_id=post.get("id")
+        if not post_id:continue
+        comments=ig_get(host,f"{post_id}/comments",{
+            "fields":"id,text,timestamp","limit":100,"access_token":token})
+        for comment in comments.get("data") or []:
+            comment_id=str(comment.get("id") or "")
+            words=set(re.findall(r"[A-Za-z0-9_]+",str(comment.get("text") or "").upper()))
+            if not comment_id or "RADAR" not in words or comment_id in seen:continue
+            matched+=1
+            if DRY_RUN:
+                print("[DRY RUN] would send RADAR DM for comment",comment_id);continue
+            message=("You’re in. Here is the live IS IT COOKED? on-chain radar:\n"
+                     "https://t.me/radarmemecoinss\n\nSelective signals, contract checks and public receipts. "
+                     "Always verify the contract. Not financial advice.")
+            ig_post(host,f"{comment_id}/private_replies",{"message":message,"access_token":token})
+            seen.add(comment_id); updated.append(comment_id); sent+=1
+    if not DRY_RUN and updated:save("dm_replied",list(dict.fromkeys(updated))[-2000:])
+    print(f"RADAR comment funnel: {matched} new match(es), {sent} DM(s) sent")
+
+
 def ig_wait(host,container,token,tries=30):
     for attempt in range(tries):
         response=HTTP.get(f"{host}/{container}",params={"fields":"status_code","access_token":token},timeout=30)
@@ -838,6 +871,7 @@ def job_diagnose():
 
 JOBS={"instagram_prepare":job_instagram_prepare,"instagram_publish":job_instagram_publish,
       "reel_prepare":job_reel_prepare,"reel_publish":job_reel_publish,
+      "engage":job_engage,
       "scoreboard_prepare":job_scoreboard_prepare,
       "story_tip_prepare":job_story_tip_prepare,"story_radar_prepare":job_story_radar_prepare,
       "story_publish":job_story_publish,"diagnose":job_diagnose}

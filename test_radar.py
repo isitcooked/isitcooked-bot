@@ -64,6 +64,9 @@ class RadarTests(unittest.TestCase):
         self.assertIn("Comment RADAR", text)
         self.assertIn("A"*32, text)
 
+    def test_engagement_job_is_registered(self):
+        self.assertIn("engage", bot.JOBS)
+
     def test_outcomes_are_recorded_without_cherry_picking(self):
         record = {"symbol":"TEST", "chain":"solana", "address":"A"*32,
                   "initial_price":1.0, "published_at":1_000, "checkpoints":{}}
