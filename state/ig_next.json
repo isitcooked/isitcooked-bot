@@ -1,0 +1,20 @@
+{
+  "files": [
+    "ig_20261124_1626_DONJENSEN_s1_card.jpg",
+    "ig_20261124_1626_DONJENSEN_s2.jpg",
+    "ig_20261124_1626_DONJENSEN_s3.jpg",
+    "ig_20261124_1626_DONJENSEN_s4.jpg"
+  ],
+  "caption": "$DONJENSEN just entered the IS IT COOKED? watchlist.\n\nRadar score: 75/100\nLiquidity: $101.4K\n1h volume: $44.6K\nBuy pressure: 70%\n1h change: +9.2%\n\nNo critical scanner flags detected.\n\nSolana contract:\n5LDowscYVD3a6ZS4m8gCqG5nU16eLTwRXhciFi1bpump\n\nComment RADAR for the live intelligence feed, then verify the contract before acting. Save this card and follow for the public receipt.\n\nPromising momentum is not a guarantee. Not financial advice. Always do your own research.\n\n#memecoins #cryptoresearch #onchain #solana #dexscreener",
+  "token_key": "solana:5LDowscYVD3a6ZS4m8gCqG5nU16eLTwRXhciFi1bpump",
+  "score": 75,
+  "record": {
+    "symbol": "DONJENSEN",
+    "chain": "solana",
+    "address": "5LDowscYVD3a6ZS4m8gCqG5nU16eLTwRXhciFi1bpump",
+    "initial_price": 0.00198,
+    "score": 75,
+    "initial_liquidity": 101446.14
+  },
+  "prepared_at": "2026-11-24T16:26:28.418836+00:00"
+}
