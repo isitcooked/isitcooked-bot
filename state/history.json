@@ -121,7 +121,14 @@
     "score": 75,
     "initial_liquidity": 101446.14,
     "published_at": 1795537631.4795382,
-    "checkpoints": {},
-    "peak_change_pct": 0
+    "checkpoints": {
+      "1h": {
+        "change_pct": -5.35,
+        "observed_after_h": 1.3,
+        "price": 0.001874
+      }
+    },
+    "peak_change_pct": 0.0,
+    "last_price": 0.001874
   }
 ]
