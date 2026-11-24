@@ -112,5 +112,16 @@
     },
     "peak_change_pct": 0.0,
     "last_price": 1.442e-06
+  },
+  {
+    "symbol": "DONJENSEN",
+    "chain": "solana",
+    "address": "5LDowscYVD3a6ZS4m8gCqG5nU16eLTwRXhciFi1bpump",
+    "initial_price": 0.00198,
+    "score": 75,
+    "initial_liquidity": 101446.14,
+    "published_at": 1795537631.4795382,
+    "checkpoints": {},
+    "peak_change_pct": 0
   }
 ]
