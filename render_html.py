@@ -387,14 +387,14 @@ def story_tip_card(d, out, brand, pal=None):
 .wrap{{position:absolute;left:64px;right:64px;top:520px}}
 .title{{font-size:{tsize}px;text-align:center}}
 .card{{margin-top:64px;background:#fff;border:6px solid #111;border-radius:30px;box-shadow:14px 14px 0 #000;padding:44px 46px;color:#111;
- font-family:'PopM';font-size:44px;line-height:1.3;transform:rotate(-1.2deg)}}
+ font-family:'PopM';font-size:44px;line-height:1.3;white-space:pre-line;transform:rotate(-1.2deg)}}
 .cta{{position:absolute;left:110px;right:110px;top:1450px;text-align:center;background:rgb({a2});font-size:40px;transform:rotate(-2deg)}}
 .foot{{position:absolute;left:64px;right:64px;top:1560px;text-align:center;font-family:'PopM';font-size:24px;color:rgba(255,255,255,.7)}}
 </style></head><body>{_candles_svg(1080, 1920, seed=21 + d['n'])}<div class='burst'></div>
-{_story_head(brand, a2, f"TIP #{d['n']}", f"rgb({a1})")}
+{_story_head(brand, a2, e(d.get("badge", f"TIP #{d['n']}")), f"rgb({a1})")}
 <div class='wrap'><div class='cap title'>{e(d['title'])}</div><div class='card'>{e(d['body'])}</div></div>
 <div class='sticker cta'>FOLLOW FOR VERIFIED SIGNALS</div>
-<div class='foot'>Not financial advice. DYOR.</div></body></html>"""
+<div class='foot'>{e(d.get("footer", "Not financial advice. DYOR."))}</div></body></html>"""
     return to_png(doc, out, 1080, 1920)
 
 

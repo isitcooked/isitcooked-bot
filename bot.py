@@ -859,7 +859,7 @@ def job_story_tip_prepare():
 
 def job_story_radar_prepare():
     cleanup_media(); refresh_history(); data=pick_promising(False)
-    if not data:return
+    if not data:return job_story_market_prepare()
     token=data["token"]; symbol=re.sub(r"[^A-Za-z0-9_-]","",token["symbol"][:10]) or "token"
     prefix=f"story_radar_{dt.datetime.now(dt.timezone.utc):%Y%m%d_%H%M}_{symbol}"; logo=get_logo(data,prefix); palette=design.logo_palette(Image.open(logo)); m={k:v for k,v,_ in data["metrics"]}
     payload={"symbol":token["symbol"].upper()[:12],"chain":token["chain_name"],"chain_key":token["chain"],"verdict":verdict(data),
@@ -869,6 +869,54 @@ def job_story_radar_prepare():
     save("ig_story_next",{"file":jpg.name,"kind":"radar"}); print("prepared radar story:",token["symbol"])
 
 
+def prepare_update_story(title, rows, source, news_key=None):
+    stamp = dt.datetime.now(dt.timezone.utc).strftime("%H:%M UTC")
+    path = PUBLIC / f"story_update_{time.time_ns()}.png"
+    render_html.story_tip_card(
+        {"n": 1, "title": title, "body": "\n".join(rows),
+         "badge": "MARKET DESK", "footer": f"{source} · {stamp}"}, path, BRAND.upper())
+    jpg = story_jpg(path)
+    save("ig_story_next", {"file": jpg.name, "kind": "update", "news_key": news_key})
+
+
+def job_story_market_prepare():
+    cleanup_media()
+    data = get_json("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true")
+    rows = []
+    for asset, ticker in (("bitcoin", "BTC"), ("ethereum", "ETH"), ("solana", "SOL")):
+        quote_data = data.get(asset, {})
+        price = num(quote_data.get("usd"))
+        change = quote_data.get("usd_24h_change")
+        if price > 0 and isinstance(change, (int, float)) and math.isfinite(change):
+            rows.append(f"{ticker}  ·  ${price:,.2f}  ·  {change:+.1f}%")
+    if not rows:
+        raise RuntimeError("CoinGecko returned no usable USD quotes")
+    prepare_update_story("Crypto prices", rows, "CoinGecko · USD / 24H CHANGE")
+
+
+def job_story_news_prepare():
+    from email.utils import parsedate_to_datetime
+    from xml.etree import ElementTree as ET
+
+    last = load("story_news_recent", {}).get("key")
+    try:
+        response = HTTP.get("https://www.coindesk.com/arc/outboundfeeds/rss/", timeout=15)
+        response.raise_for_status()
+        items = ET.fromstring(response.content).findall("./channel/item")
+    except (requests.RequestException, ET.ParseError):
+        items = []
+    for item in items:
+        title = " ".join(item.findtext("title", "").split())
+        key = item.findtext("guid") or item.findtext("link")
+        try:
+            age = dt.datetime.now(dt.timezone.utc) - parsedate_to_datetime(item.findtext("pubDate", ""))
+        except (ValueError, TypeError):
+            continue
+        if key and key != last and 0 < len(title) <= 160 and dt.timedelta() <= age <= dt.timedelta(hours=4):
+            return prepare_update_story("Crypto headlines", [title], "CoinDesk", key)
+    return job_story_market_prepare()
+
+
 def job_story_publish():
     pending=load("ig_story_next",None)
     if not pending or not pending.get("file"):return print("no story prepared")
@@ -876,6 +924,8 @@ def job_story_publish():
     if DRY_RUN:return print("[DRY RUN STORY]",url)
     wait_public([url]); result=publish_story(url)
     if not result.get("id"):raise RuntimeError("Instagram did not confirm story publication")
+    if pending.get("news_key"):
+        save("story_news_recent", {"key": pending["news_key"]})
     update_stats(False); (STATE/"ig_story_next.json").unlink(missing_ok=True); print("story published:",result["id"])
 
 
@@ -890,6 +940,7 @@ JOBS={"instagram_prepare":job_instagram_prepare,"instagram_publish":job_instagra
       "engage":job_engage,
       "scoreboard_prepare":job_scoreboard_prepare,
       "story_tip_prepare":job_story_tip_prepare,"story_radar_prepare":job_story_radar_prepare,
+      "story_market_prepare":job_story_market_prepare,"story_news_prepare":job_story_news_prepare,
       "story_publish":job_story_publish,"diagnose":job_diagnose}
 
 if __name__=="__main__":
