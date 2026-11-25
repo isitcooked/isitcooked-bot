@@ -1,13 +1,14 @@
 {
   "files": [
-    "brief_20261124_1.jpg",
-    "brief_20261124_2.jpg",
-    "brief_20261124_3.jpg",
-    "brief_20261124_4.jpg",
-    "brief_20261124_5.jpg"
+    "brief_20261125_afternoon_1.jpg",
+    "brief_20261125_afternoon_2.jpg",
+    "brief_20261125_afternoon_3.jpg",
+    "brief_20261125_afternoon_4.jpg",
+    "brief_20261125_afternoon_5.jpg"
   ],
-  "caption": "THE RADAR BRIEF — 24 NOV 2026\n\nPairs scanned: 32\nPassed the complete market-structure gate: 0\nMedian liquidity: $9.0K\nMedian 1h volume: $4.3K\n\nA quiet radar is information. We do not manufacture a call to fill the feed.\n\nSave this briefing and follow for the next qualified signal and its public receipt.\n\nSource: DexScreener public market data at scan time. Not financial advice. DYOR.\n\n#memecoins #onchain #cryptoresearch #solana #basechain",
+  "caption": "THE RADAR BRIEF — 25 NOV 2026 · AFTERNOON\n\nPairs scanned: 31\nPassed the complete market-structure gate: 0\nMedian liquidity: $11.8K\nMedian 1h volume: $1.4K\n\nA quiet radar is information. We do not manufacture a call to fill the feed.\n\nSave this briefing and follow for the next qualified signal and its public receipt.\n\nSource: DexScreener public market data at scan time. Not financial advice. DYOR.\n\n#memecoins #onchain #cryptoresearch #solana #basechain",
   "kind": "market_brief",
-  "brief_date": "2026-11-24",
-  "prepared_at": "2026-11-24T17:43:02.335801+00:00"
+  "brief_date": "2026-11-25",
+  "brief_slot": "afternoon",
+  "prepared_at": "2026-11-25T21:31:20.853978+00:00"
 }
