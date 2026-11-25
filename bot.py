@@ -338,7 +338,9 @@ def prepare_market_brief():
     This is deliberately not a substitute signal.  It explains what the radar
     actually observed and why candidates did not earn publication.
     """
-    recent=load("brief_recent", {})
+    slot = "morning" if os.getenv("FEED_SLOT") == "morning" else "afternoon"
+    state_key = "brief_recent_morning" if slot == "morning" else "brief_recent"
+    recent=load(state_key, {})
     today=dt.date.today().isoformat()
     if recent.get("date")==today:
         return print("market brief already published today")
@@ -359,7 +361,7 @@ def prepare_market_brief():
     fail_flow=sum(row["buys"] <= row["sells"] for row in rows)
     median_liq=statistics.median(row["liq"] for row in rows)
     median_vol=statistics.median(row["v1"] for row in rows)
-    date_label=dt.date.today().strftime("%d %b %Y").upper()
+    date_label=dt.date.today().strftime("%d %b %Y").upper() + f" · {slot.upper()}"
     slides=[
         f"THE RADAR BRIEF\n{date_label}\n\nREAL MARKET DATA. ZERO FORCED CALLS.",
         f"{len(rows)} PAIRS SCANNED\n\nMEDIAN LIQUIDITY  {fmt_usd(median_liq)}\nMEDIAN 1H VOLUME  {fmt_usd(median_vol)}",
@@ -367,7 +369,7 @@ def prepare_market_brief():
         f"WHY CANDIDATES FAILED\n\n{fail_liq}  LOW LIQUIDITY\n{fail_volume}  LOW 1H VOLUME\n{fail_flow}  WEAK BUY/SELL FLOW",
         "NO CLEAN STRUCTURE?\nNO SIGNAL.\n\nSAVE THE BRIEF. FOLLOW THE NEXT MOVE.\nLIVE RADAR IN BIO.",
     ]
-    prefix=f"brief_{dt.date.today():%Y%m%d}"; files=[]
+    prefix=f"brief_{dt.date.today():%Y%m%d}_{slot}"; files=[]
     for index,text in enumerate(slides):
         png=PUBLIC/f"{prefix}_{index+1}.png"
         render_html.slide_card(text,index,len(slides),png,BRAND.upper())
@@ -384,14 +386,27 @@ def prepare_market_brief():
         "#memecoins #onchain #cryptoresearch #solana #basechain",
     ))
     save("ig_next",{"files":[p.name for p in files],"caption":caption_text,"kind":"market_brief",
-                    "brief_date":today,"prepared_at":dt.datetime.now(dt.timezone.utc).isoformat()})
+                    "brief_date":today,"brief_slot":slot,
+                    "prepared_at":dt.datetime.now(dt.timezone.utc).isoformat()})
     print("prepared data-backed market brief:", len(rows), "pairs", structured, "qualified")
+
+
+def has_local_carousel():
+    pending = load("ig_next", None)
+    if not pending:
+        return False
+    files = pending.get("files") or []
+    if files and all((PUBLIC / name).is_file() for name in files):
+        return True
+    print("Pending carousel media is missing; rebuilding from current data.")
+    (STATE / "ig_next.json").unlink(missing_ok=True)
+    return False
 
 
 def job_instagram_prepare():
     cleanup_media()
     refresh_history()
-    if load("ig_next",None): return print("a post is already prepared; publish it before replacing it")
+    if has_local_carousel(): return print("a post is already prepared; publish it before replacing it")
     data=pick_promising(True)
     if not data:
         return prepare_market_brief()
@@ -762,7 +777,8 @@ def job_instagram_publish():
         save("authority_recent",{"date":dt.date.today().isoformat(),"title":pending.get("authority_title"),
                                  "published_at":dt.datetime.now(dt.timezone.utc).isoformat()})
     if pending.get("kind")=="market_brief":
-        save("brief_recent",{"date":pending.get("brief_date",dt.date.today().isoformat()),
+        state_key = "brief_recent_morning" if pending.get("brief_slot") == "morning" else "brief_recent"
+        save(state_key,{"date":pending.get("brief_date",dt.date.today().isoformat()),
                              "published_at":dt.datetime.now(dt.timezone.utc).isoformat()})
 
 
@@ -781,7 +797,7 @@ def job_reel_publish():
 def job_scoreboard_prepare():
     """Publish the full tracked record. Wins and losses are both included."""
     cleanup_media(); history=refresh_history()
-    if load("ig_next",None): return print("another carousel is already pending")
+    if has_local_carousel(): return print("another carousel is already pending")
     tracked=[r for r in history if "24h" in r.get("checkpoints",{})]
     if len(tracked) < 3: return print("not enough 24h outcomes for The Receipt yet")
     recent=tracked[-20:]; changes=[r["checkpoints"]["24h"]["change_pct"] for r in recent]
