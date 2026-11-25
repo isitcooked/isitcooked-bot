@@ -222,6 +222,9 @@ def slide_card(text, i, total, out, brand, pal=None):
     elif last:
         body = (f"<div class='big' style='top:360px;font-size:78px'>{e(text.upper())}</div>"
                 f"<div class='sticker cta'>FOLLOW {e(brand)}</div>")
+    elif len(text.splitlines()) >= 4:
+        lines = [line for line in text.splitlines() if line.strip()]
+        body = "<div class='brief'>" + "".join(f"<div>{e(line)}</div>" for line in lines) + "</div>"
     else:
         st = f"<div class='statbox'>{e(stat)}</div>" if stat else ""
         body = f"{st}<div class='big' style='top:{690 if stat else 420}px;font-size:{66 if stat else 84}px'>{e(text.upper())}</div>"
@@ -238,6 +241,9 @@ body{{width:1080px;height:1350px;overflow:hidden;background:#0a0a13;font-family:
  -webkit-text-stroke:12px #000;paint-order:stroke fill;text-shadow:8px 8px 0 #000}}
 .statbox{{position:absolute;left:90px;right:90px;top:250px;text-align:center;background:rgb({a1 if not (stat or '').startswith('-') else '255,77,94'});border:8px solid #111;border-radius:34px;
  box-shadow:14px 14px 0 #000;font-family:'Fredoka';font-size:200px;line-height:1.15;color:#111;transform:rotate(-2deg);padding:10px 0}}
+.brief{{position:absolute;left:72px;right:72px;top:305px;display:grid;gap:20px;font-size:46px;line-height:1.16}}
+.brief div{{padding:21px 30px;background:#17182a;border-left:6px solid rgb({a1});border-radius:12px;overflow-wrap:anywhere}}
+.brief div:first-child{{font-size:62px;background:none;border:0;padding:0 0 30px}}
 .swipe{{position:absolute;left:0;right:0;top:1180px;text-align:center;font-family:'Fredoka';font-size:44px;color:rgb({a2})}}
 .cta{{position:absolute;left:150px;right:150px;top:900px;text-align:center;background:rgb({a2});font-size:54px;transform:rotate(-2deg)}}
 .foot{{position:absolute;left:64px;right:64px;bottom:34px;display:flex;justify-content:space-between;font-family:'PopM';font-size:19px;color:rgba(255,255,255,.62)}}
