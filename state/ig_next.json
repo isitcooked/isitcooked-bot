@@ -1,20 +1,14 @@
 {
   "files": [
-    "ig_20261126_1744_UHI_s1_card.jpg",
-    "ig_20261126_1744_UHI_s2.jpg",
-    "ig_20261126_1744_UHI_s3.jpg",
-    "ig_20261126_1744_UHI_s4.jpg"
+    "brief_20261127_morning_1.jpg",
+    "brief_20261127_morning_2.jpg",
+    "brief_20261127_morning_3.jpg",
+    "brief_20261127_morning_4.jpg",
+    "brief_20261127_morning_5.jpg"
   ],
-  "caption": "$UHI just entered the IS IT COOKED? watchlist.\n\nRadar score: 76/100\nLiquidity: $99.1K\n1h volume: $81.0K\nBuy pressure: 80%\n1h change: +7.0%\n\nNo critical scanner flags detected.\n\nSolana contract:\nBnw5JRPek5JvJhzUiB9yrs2cmzt4bLeFqSRzDzSppump\n\nComment RADAR for the live intelligence feed, then verify the contract before acting. Save this card and follow for the public receipt.\n\nPromising momentum is not a guarantee. Not financial advice. Always do your own research.\n\n#memecoins #cryptoresearch #onchain #solana #dexscreener",
-  "token_key": "solana:Bnw5JRPek5JvJhzUiB9yrs2cmzt4bLeFqSRzDzSppump",
-  "score": 76,
-  "record": {
-    "symbol": "UHI",
-    "chain": "solana",
-    "address": "Bnw5JRPek5JvJhzUiB9yrs2cmzt4bLeFqSRzDzSppump",
-    "initial_price": 0.001826,
-    "score": 76,
-    "initial_liquidity": 99127.74
-  },
-  "prepared_at": "2026-11-26T17:44:16.361213+00:00"
+  "caption": "THE RADAR BRIEF — 27 NOV 2026 · MORNING\n\nPairs scanned: 30\nPassed the complete market-structure gate: 0\nMedian liquidity: $4.9K\nMedian 1h volume: $2.7K\n\nA quiet radar is information. We do not manufacture a call to fill the feed.\n\nSave this briefing and follow for the next qualified signal and its public receipt.\n\nSource: DexScreener public market data at scan time. Not financial advice. DYOR.\n\n#memecoins #onchain #cryptoresearch #solana #basechain",
+  "kind": "market_brief",
+  "brief_date": "2026-11-27",
+  "brief_slot": "morning",
+  "prepared_at": "2026-11-27T11:57:50.163949+00:00"
 }
